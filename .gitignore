@@ -60,3 +60,6 @@ htmlcov/
 
 # Runtime user uploads
 **/backend/uploads/
+
+# Local export snapshot
+systems_changes/

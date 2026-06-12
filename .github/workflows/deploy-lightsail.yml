@@ -1,0 +1,97 @@
+name: Deploy to AWS Lightsail
+
+# Deploys the Docker Compose stack to an AWS Lightsail *instance* (an Ubuntu VM
+# running Docker + the Compose plugin). The stack is stateful (Postgres / Redis /
+# ChromaDB use Docker volumes), so a VM is the right target — not the stateless
+# Lightsail Container Service.
+#
+# Flow: check out the repo on the runner → rsync the tree to the instance →
+# write the production .env from secrets → `docker compose up -d --build` → health-check.
+#
+# ── Required repository secrets (Settings → Secrets and variables → Actions) ──
+#   LIGHTSAIL_HOST         Public IP or DNS of the Lightsail instance
+#   LIGHTSAIL_USER         SSH user (Ubuntu blueprint → "ubuntu")
+#   LIGHTSAIL_SSH_KEY      Private key (full PEM contents) for that user
+#   LIGHTSAIL_DEPLOY_DIR   Absolute path on the instance, e.g. /home/ubuntu/nexacore
+#   ANTHROPIC_API_KEY      App secret → written into the instance .env
+#   OPENAI_API_KEY         App secret (optional; embeddings only)
+#   VAULT_ENCRYPTION_KEY   App secret → field-level encryption master key
+#   APP_SECRET_KEY         App secret → backend JWT signing key (>= 32 chars)
+#
+# One-time instance prep (run once on the VM):
+#   sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2 rsync
+#   sudo usermod -aG docker $USER   # then re-login
+#   mkdir -p "$LIGHTSAIL_DEPLOY_DIR"
+# Also open port 80 (and 443) in the Lightsail instance's networking firewall.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Never run two deploys to the same instance at once; let an in-flight deploy finish.
+concurrency:
+  group: lightsail-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy on Lightsail
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.LIGHTSAIL_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Write production .env
+        run: |
+          umask 077
+          cat > .env <<EOF
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          VAULT_ENCRYPTION_KEY=${{ secrets.VAULT_ENCRYPTION_KEY }}
+          SECRET_KEY=${{ secrets.APP_SECRET_KEY }}
+          EOF
+
+      - name: Sync code to the instance
+        env:
+          TARGET: ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:${{ secrets.LIGHTSAIL_DEPLOY_DIR }}/
+        run: |
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude 'node_modules/' \
+            --exclude '.next/' \
+            --exclude '__pycache__/' \
+            --exclude 'venv/' \
+            --exclude '.DS_Store' \
+            --exclude 'systems_changes/' \
+            --exclude 'modules/*/backend/uploads/' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            ./ "$TARGET"
+
+      - name: Build & start containers
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
+            "cd '${{ secrets.LIGHTSAIL_DEPLOY_DIR }}' && \
+             docker compose up -d --build --remove-orphans && \
+             docker image prune -f"
+
+      - name: Health check
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
+            "cd '${{ secrets.LIGHTSAIL_DEPLOY_DIR }}'; \
+             for i in \$(seq 1 15); do \
+               if curl -fsS http://localhost/ >/dev/null 2>&1; then echo 'Healthy ✓'; exit 0; fi; \
+               echo \"waiting for app… (\$i/15)\"; sleep 6; \
+             done; \
+             echo '::error::Health check failed — recent logs:'; \
+             docker compose logs --tail=80; exit 1"
