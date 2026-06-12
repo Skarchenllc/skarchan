@@ -1,0 +1,31 @@
+# Caddy reverse proxy with AUTOMATIC HTTPS (Let's Encrypt, auto-renewed).
+# Replaces the old nginx config — same routing, plus TLS with zero cert steps.
+#
+# Routing (shared by the public HTTPS site and the local health endpoint):
+#   /api/*      -> core-backend:8000   (every module's API)
+#   /uploads/*  -> core-backend:8000   (files served by the backend's StaticFiles)
+#   everything  -> core-frontend:3000  (the Next.js app)
+(app) {
+	encode gzip
+	handle /api/* {
+		reverse_proxy core-backend:8000
+	}
+	handle /uploads/* {
+		reverse_proxy core-backend:8000
+	}
+	handle {
+		reverse_proxy core-frontend:3000
+	}
+}
+
+# Public site — Caddy obtains + renews a certificate for this domain automatically.
+# Requires DNS A record -> instance IP and ports 80 + 443 open.
+{$APP_DOMAIN} {
+	import app
+}
+
+# Plain-HTTP localhost — only so the on-box deploy health check (curl localhost)
+# works; real traffic uses the HTTPS site above.
+http://localhost {
+	import app
+}

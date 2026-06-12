@@ -160,12 +160,21 @@ Visit `http://<STATIC_IP>/`.
 
 ## 8. Domain + HTTPS
 
-1. Point your domain's A record at the static IP.
-2. Add `443` to the Lightsail firewall (Step 2).
-3. Terminate TLS. Two easy options:
-   - Put **Caddy** in front (auto Let's Encrypt), or
-   - Run **certbot** and extend `nginx/nginx.conf` with a 443 server block + the
-     cert paths. (The current `nginx.conf` only serves :80.)
+The proxy is **Caddy** (`./Caddyfile`), which gets and auto-renews a Let's Encrypt
+certificate — no certbot, no cron, no manual cert steps. Three things:
+
+1. **DNS:** at your registrar, add an **A record** → your instance's **static IP**
+   (e.g. `app` → `1.2.3.4`). Wait for it to resolve (`dig +short app.example.com`).
+2. **Firewall:** open **443** in the Lightsail instance's IPv4 firewall (80 is already open).
+3. **Tell the app its domain:** set the `APP_DOMAIN` secret, then deploy:
+   ```bash
+   gh secret set APP_DOMAIN -R Skarchenllc/skarchan --body "app.example.com"
+   git push origin main
+   ```
+
+On deploy, Caddy fetches the cert (needs DNS + ports 80/443 reachable) and serves
+HTTPS, redirecting HTTP→HTTPS automatically. Certs live in the `caddy_data` volume,
+so they survive redeploys. Visit `https://app.example.com/`.
 
 ## 9. Persistence & backups
 
