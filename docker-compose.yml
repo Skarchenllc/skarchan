@@ -30,28 +30,9 @@ services:
     networks:
       - bmp-network
 
-  redis:
-    image: redis:7-alpine
-    container_name: bmp-redis
-    ports:
-      - "6579:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - bmp-network
-
-  chromadb:
-    image: chromadb/chroma:latest
-    container_name: bmp-chromadb
-    ports:
-      - "8200:8000"
-    volumes:
-      - chromadb_data:/chroma/chroma
-    environment:
-      - IS_PERSISTENT=TRUE
-      - ANONYMIZED_TELEMETRY=FALSE
-    networks:
-      - bmp-network
+  # Redis and ChromaDB removed to stay lean: Redis was unused (the rate limiter
+  # is in-memory), and ChromaDB powered optional semantic "Ask Your Data" search —
+  # the backend falls back to keyword retrieval without it.
 
   # Core Module (Shared Services)
   core-frontend:
@@ -86,21 +67,17 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=60
       - REFRESH_TOKEN_EXPIRE_DAYS=30
       - DEBUG=True
-      - REDIS_URL=redis://redis:6379
-      - CHROMA_URL=http://chromadb:8000
       # Anthropic API key for AI features (e.g. the PM auto-planner). Set a real
       # value in .env; the backend reads it at request time.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      # OpenAI key — used ONLY for embeddings (semantic Ask Your Data via ChromaDB).
-      # The LLM stays Claude. Optional: without it, retrieval falls back to keyword.
+      # OpenAI key — only powered embeddings for semantic search (via ChromaDB,
+      # now removed), so it's currently inert. The LLM is Claude. Leave empty.
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       # Master key for AES-GCM field-level encryption. 32 raw bytes,
       # base64-encoded. Override in production via a secret manager.
       - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:-Vm91blJqYjBhVHhxK0RVRWp1VUxYTHpHcExuTGFLczg=}
     depends_on:
       - postgres
-      - redis
-      - chromadb
     volumes:
       - ./modules/core/backend:/app
       - uploads_data:/app/uploads
@@ -113,6 +90,4 @@ networks:
 
 volumes:
   postgres_data:
-  redis_data:
-  chromadb_data:
   uploads_data:

@@ -1,9 +1,9 @@
 # Deploying to AWS Lightsail
 
-This project is a **6-container Docker Compose stack** with stateful databases.
+This project is a **4-container Docker Compose stack** with a stateful database.
 The right Lightsail target is a **Lightsail instance (an Ubuntu VM running Docker
 Compose)** — *not* the Lightsail Container Service, which is stateless and can't
-host Postgres / Redis / ChromaDB with persistent volumes.
+host Postgres with a persistent volume.
 
 The CI workflow `.github/workflows/deploy-lightsail.yml` does the actual deploys
 (rsync code → write `.env` from secrets → `docker compose up -d --build` →
@@ -23,13 +23,9 @@ The production stack (`docker-compose.prod.yml`) runs **4 containers** by defaul
 | `bmp-core-backend` | FastAPI/uvicorn | API on :8000 | ~400–600 MB |
 | `bmp-postgres` | postgres:16-alpine | named volume `postgres_data` | ~300–500 MB |
 
-**Trimmed for AWS:**
-- **Redis** was removed — the backend's rate limiter is in-memory; nothing used it.
-- **ChromaDB** (vector search, ~0.5–0.7 GB) is **opt-in** behind the `semantic`
-  profile. The backend falls back to keyword search without it, and it's only
-  useful with an OpenAI embeddings key. Enable it only if you want semantic
-  "Ask Your Data":
-  `docker compose -f docker-compose.prod.yml --profile semantic up -d`
+**Trimmed for AWS:** Redis and ChromaDB were removed to stay lean — Redis was
+unused (the rate limiter is in-memory), and ChromaDB powered optional semantic
+"Ask Your Data" search; the backend falls back to keyword retrieval without it.
 
 Default runtime is ~1–1.5 GB RAM. Crucially, **the images are built in CI, not on
 the instance** (the frontend is a lean Next.js *standalone* image, ~290 MB), so
@@ -38,8 +34,8 @@ External Anthropic / OpenAI APIs are called over the network — no local GPU/mo
 
 **Smallest that fits: `2 GB RAM / 2 vCPU / 60 GB SSD` (~$12/mo).** Add ~2 GB swap
 (Step 3) for headroom during traffic peaks.
-**`4 GB / 2 vCPU` (~$24/mo)** is more comfortable, and required if you enable the
-`semantic` profile (ChromaDB) or run other heavy modules.
+**`4 GB / 2 vCPU` (~$24/mo)** is more comfortable if you later run additional
+modules.
 
 **Blueprint:** Ubuntu 22.04 LTS (OS-only, not a pre-baked app).
 **Disk:** the included 80 GB (4 GB plan) / 160 GB (8 GB plan) is plenty — the repo
@@ -128,7 +124,7 @@ Settings → Secrets and variables → **Actions** → *New repository secret*:
 | `APP_SECRET_KEY` | backend JWT key, ≥32 chars (`openssl rand -hex 32`) |
 | `VAULT_ENCRYPTION_KEY` | base64 of 32 random bytes (`openssl rand -base64 32`) |
 | `ANTHROPIC_API_KEY` | your Anthropic key (AI features) |
-| `OPENAI_API_KEY` | OpenAI key (optional — embeddings only) |
+| `OPENAI_API_KEY` | optional & currently inert (only fed ChromaDB embeddings, now removed) |
 
 ## 6. Production stack vs. dev
 
@@ -175,8 +171,7 @@ Visit `http://<STATIC_IP>/`.
 ## 9. Persistence & backups
 
 State lives in Docker **named volumes** (survive `compose up/down`, *not*
-`down -v`): `postgres_data`, `uploads_data` (and `chromadb_data` only when the
-`semantic` profile is enabled).
+`down -v`): `postgres_data`, `uploads_data`.
 
 - **Snapshots:** enable Lightsail **automatic snapshots** on the instance (daily,
   whole-disk including volumes).

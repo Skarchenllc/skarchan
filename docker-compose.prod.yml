@@ -8,9 +8,9 @@
 #   • Secrets   → DB password, SECRET_KEY, VAULT key, API keys come from .env (required ones fail fast if unset)
 #   • Networking→ internal service ports are NOT published to the host; only nginx :80 is public
 #   • restart: unless-stopped on everything
-#   • Slimmed for AWS: Redis dropped (unused — rate limiter is in-memory), and
-#     ChromaDB is opt-in via `--profile semantic`. Default = nginx + frontend +
-#     backend + postgres (4 containers).
+#   • Slimmed for AWS: Redis dropped (unused — rate limiter is in-memory) and
+#     ChromaDB dropped (optional semantic search; backend falls back to keyword).
+#     Stack = nginx + frontend + backend + postgres (4 containers).
 #   • Fits a 2 GB instance: the frontend is a Next.js *standalone* image (~290 MB,
 #     low RAM) and images are BUILT IN CI and loaded onto the box (it never runs
 #     the memory-heavy build). Deploy with `up --no-build` so it only runs them.
@@ -51,23 +51,9 @@ services:
     networks: [bmp-network]
     restart: unless-stopped
 
-  # Redis removed — the backend's rate limiter is in-memory; nothing uses Redis.
-
-  # ChromaDB is OPT-IN (vector search for semantic "Ask Your Data"). It's the
-  # heaviest support service and only useful with an OpenAI embeddings key; the
-  # backend falls back to keyword search when it's absent. Start it only when you
-  # want semantic search:  docker compose -f docker-compose.prod.yml --profile semantic up -d
-  chromadb:
-    image: chromadb/chroma:latest
-    container_name: bmp-chromadb
-    profiles: ["semantic"]
-    environment:
-      - IS_PERSISTENT=TRUE
-      - ANONYMIZED_TELEMETRY=FALSE
-    volumes:
-      - chromadb_data:/chroma/chroma
-    networks: [bmp-network]
-    restart: unless-stopped
+  # Redis and ChromaDB removed to stay lean: Redis was unused (the rate limiter
+  # is in-memory), and ChromaDB powered optional semantic "Ask Your Data" search —
+  # the backend falls back to keyword retrieval without it.
 
   core-frontend:
     # Built in CI and loaded onto the instance (the 2 GB box never builds).
@@ -105,9 +91,6 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=60
       - REFRESH_TOKEN_EXPIRE_DAYS=30
       - DEBUG=False
-      # Points at the optional chromadb service; harmless when it isn't running
-      # (the backend heartbeats it and falls back to keyword retrieval).
-      - CHROMA_URL=http://chromadb:8000
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:?Set VAULT_ENCRYPTION_KEY in .env}
@@ -124,5 +107,4 @@ networks:
 
 volumes:
   postgres_data:
-  chromadb_data:   # only used when the `semantic` profile is enabled
   uploads_data:
