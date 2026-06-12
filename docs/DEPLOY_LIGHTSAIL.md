@@ -14,23 +14,31 @@ depends on.
 
 ## 0. What runs, and how big it needs to be
 
+The production stack (`docker-compose.prod.yml`) runs **4 containers** by default:
+
 | Container | Image | Notes | ~RAM |
 |---|---|---|---|
 | `bmp-nginx` | nginx:alpine | Public entry on :80 | ~30 MB |
-| `bmp-core-frontend` | Next.js (Dockerfile.dev) | **dev server**, `--max-old-space-size=2048` | up to **2 GB** |
+| `bmp-core-frontend` | Next.js prod build | `next start` | ~250–400 MB |
 | `bmp-core-backend` | FastAPI/uvicorn | API on :8000 | ~400–600 MB |
 | `bmp-postgres` | postgres:16-alpine | named volume `postgres_data` | ~300–500 MB |
-| `bmp-chromadb` | chromadb/chroma | vector store, `chromadb_data` | ~400–700 MB |
-| `bmp-redis` | redis:7-alpine | `redis_data` | ~50 MB |
 
-Steady state is ~3.5–4.5 GB RAM, with a spike during `docker compose build`
-(the Next.js install/compile is the heaviest step). External Anthropic / OpenAI
-APIs are called over the network — no local GPU/model.
+**Trimmed for AWS:**
+- **Redis** was removed — the backend's rate limiter is in-memory; nothing used it.
+- **ChromaDB** (vector search, ~0.5–0.7 GB) is **opt-in** behind the `semantic`
+  profile. The backend falls back to keyword search without it, and it's only
+  useful with an OpenAI embeddings key. Enable it only if you want semantic
+  "Ask Your Data":
+  `docker compose -f docker-compose.prod.yml --profile semantic up -d`
 
-**Recommended plan:** `8 GB RAM / 2 vCPU` (~$44/mo). Comfortable for the dev
-server + builds + ChromaDB.
-**Minimum plan:** `4 GB RAM / 2 vCPU` (~$24/mo) — *only* if you add **swap**
-(Step 3); without swap the Next.js build will OOM-kill.
+Default steady state is ~1–1.5 GB RAM, with a spike during the one-time Next.js
+build. External Anthropic / OpenAI APIs are called over the network — no local
+GPU/model.
+
+**Recommended plan:** `4 GB RAM / 2 vCPU` (~$24/mo) — comfortable for the default
+stack (add **swap**, Step 3, so the first frontend build doesn't OOM-kill).
+**Bump to `8 GB / 2 vCPU` (~$44/mo)** if you enable the `semantic` profile
+(ChromaDB) or run other heavy modules.
 Do **not** use 1–2 GB plans.
 
 **Blueprint:** Ubuntu 22.04 LTS (OS-only, not a pre-baked app).
@@ -167,7 +175,8 @@ Visit `http://<STATIC_IP>/`.
 ## 9. Persistence & backups
 
 State lives in Docker **named volumes** (survive `compose up/down`, *not*
-`down -v`): `postgres_data`, `chromadb_data`, `redis_data`, `uploads_data`.
+`down -v`): `postgres_data`, `uploads_data` (and `chromadb_data` only when the
+`semantic` profile is enabled).
 
 - **Snapshots:** enable Lightsail **automatic snapshots** on the instance (daily,
   whole-disk including volumes).
