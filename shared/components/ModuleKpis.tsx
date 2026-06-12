@@ -42,8 +42,8 @@ export default function ModuleKpis({ items }: { items: KpiItem[] }) {
 
   const Card = ({ it }: { it: KpiItem }) => (
     <div
-      className="bg-white px-4 py-2.5 flex items-baseline justify-between gap-3"
-      style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+      className="bg-white surface kpi-card px-4 py-2.5 flex items-baseline justify-between gap-3"
+      style={{ border: '1px solid #e5e7eb' }}
     >
       <div className="min-w-0">
         <div

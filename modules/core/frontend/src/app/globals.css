@@ -11,9 +11,14 @@
 .font-ui { font-family: 'Hanken Grotesk', system-ui, sans-serif; }
 
 :root {
+  /* ── BRAND PALETTE — SINGLE SOURCE OF TRUTH ──────────────────────────
+     Primary = USA Old-Glory navy. Secondary = Pakistan flag green.
+     These CSS variables, tailwind.config.js `colors`, and ThemeContext's
+     defaults are kept in lockstep. Components should reference the token
+     (`var(--color-primary)`, `bg-primary`) rather than a raw hex.        */
   /* Colors */
-  --color-primary: #5147e6;
-  --color-secondary: #01411C;
+  --color-primary: #002868;     /* navy  — primary brand / actions / links */
+  --color-secondary: #01411C;   /* green — secondary / success accents */
   --color-text: #000000;        /* black body text (brand requirement) */
   --color-text-muted: #475569;  /* slate-600 — secondary/caption copy only */
   --color-heading: #000000;     /* black headings — hierarchy via size/weight */
@@ -41,7 +46,9 @@
   --spacing-xl: calc(var(--spacing-unit) * 2);
 
   /* Border */
-  --border-radius: 0.375rem;
+  --border-radius: 0;       /* square by design — the flat/minimal system uses
+                               0 radius site-wide (enforced in the "90s MINIMAL"
+                               block). Pills/switches opt back in explicitly. */
   --border-width: 1px;
 
   /* Effects */
@@ -56,7 +63,7 @@
 }
 
 :root.dark {
-  --color-primary: #5147e6;
+  --color-primary: #002868;
   --color-secondary: #01411C;
   --color-text: #ffffff;
   --color-background: #111827;
@@ -88,6 +95,7 @@ body {
 
 /* Force theme colors on all instances */
 [class*="bg-[#5147e6]"],
+[class*="bg-[#002868]"],
 .bg-primary {
   background-color: var(--color-primary) !important;
 }
@@ -98,6 +106,7 @@ body {
 }
 
 [class*="text-[#5147e6]"],
+[class*="text-[#002868]"],
 .text-primary {
   color: var(--color-primary) !important;
 }
@@ -108,6 +117,7 @@ body {
 }
 
 [class*="border-[#5147e6]"],
+[class*="border-[#002868]"],
 .border-primary {
   border-color: var(--color-primary) !important;
 }
@@ -289,7 +299,7 @@ select {
 input:focus:not([type="checkbox"]):not([type="radio"]),
 textarea:focus,
 select:focus {
-  border-color: #5147e6 !important;
+  border-color: var(--color-primary) !important;
   outline: 2px solid rgba(81, 71, 230, 0.22) !important;
   outline-offset: 0 !important;
 }
@@ -388,7 +398,7 @@ html input[type="submit"],
 html input[type="button"],
 html input[type="reset"] {
   background-color: transparent !important;
-  color: #5147e6 !important;
+  color: var(--color-primary) !important;
   border: 0 !important;
   /* padding intentionally not set — let the caller's Tailwind classes
      (px-3 py-2, etc.) provide vertical rhythm. Forcing 0.25rem 0.5rem
@@ -402,7 +412,7 @@ html input[type="reset"] {
    so they beat `html button[class]` (0,0,1,2). */
 html button.bulk-bar-btn[class] {
   background-color: #ffffff !important;
-  color: #5147e6 !important;
+  color: var(--color-primary) !important;
   border: 0 !important;
 }
 html button.bulk-bar-btn-danger[class] {
@@ -415,7 +425,7 @@ html button.bulk-bar-link[class] {
 }
 html button.bulk-bar-btn[class]:hover:not(:disabled) {
   background-color: #f3f4f6 !important;
-  color: #5147e6 !important;
+  color: var(--color-primary) !important;
   text-decoration: none;
 }
 html button.bulk-bar-btn-danger[class]:hover:not(:disabled) {
@@ -438,7 +448,7 @@ html button.btn-reject[class]:hover:not(:disabled) { background-color: #e2e8f0 !
 
 /* Carve-out: filled primary action button (e.g. Download PDF). Keeps a solid
    navy fill with white text instead of the flattened transparent style. */
-html button.btn-primary[class] { background-color: #5147e6 !important; color: #ffffff !important; border: 0 !important; }
+html button.btn-primary[class] { background-color: var(--color-primary) !important; color: #ffffff !important; border: 0 !important; }
 html button.btn-primary[class]:hover:not(:disabled) { background-color: #001b4a !important; color: #ffffff !important; }
 html button.btn-primary[class]:disabled { opacity: 0.6 !important; }
 html button.btn-primary[class] svg { color: #ffffff !important; }
@@ -471,7 +481,7 @@ html input[type="submit"]:hover,
 html input[type="button"]:hover,
 html input[type="reset"]:hover {
   background-color: transparent !important;
-  color: #5147e6 !important;
+  color: var(--color-primary) !important;
   text-decoration: underline;
 }
 
@@ -497,7 +507,7 @@ html .dropdown button:hover {
 html button:not(nav button):not(header button):not([role="tab"]):not([role="menuitem"]) svg,
 html button[class] svg,
 html input[type="submit"] svg {
-  color: #5147e6 !important;
+  color: var(--color-primary) !important;
 }
 
 /* Disabled */
@@ -630,7 +640,7 @@ html [class*="text-slate-"],
 html [class*="text-zinc-"],
 html [class*="text-neutral-"],
 html [class*="text-stone-"] {
-  color: #5147e6 !important;
+  color: var(--color-primary) !important;
 }
 
 /* Lighter color for icons site-wide (slate). Reads as a subtle decoration
@@ -652,7 +662,7 @@ html [data-fill] svg {
 
 /* Anchors / links: simple navy text. */
 html a {
-  color: #5147e6 !important;
+  color: var(--color-primary) !important;
   text-decoration: none !important;
 }
 html a:hover {
@@ -662,13 +672,13 @@ html a:hover {
 /* Prominent "Add New" action button. Used by list views across every module
    (shared EntityList) and reusable on any bespoke page. Solid navy fill with a
    bold white label + "+" glyph. Carved out from the global navy-link color so
-   the white text survives `html a { color: #5147e6 !important }`. */
+   the white text survives `html a { color: var(--color-primary) !important }`. */
 html a.add-new-btn,
 html a.add-new-btn:visited {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  background-color: #5147e6 !important;
+  background-color: var(--color-primary) !important;
   color: #ffffff !important;
   font-weight: 700;
   border-radius: 0.375rem;
@@ -693,7 +703,7 @@ html a.add-new-btn .add-new-plus {
    by the white-button normalization above — carve it out with a solid navy fill
    and white label. Specificity-boosted with [class] to beat `html button[class]`. */
 html button.ai-plan-btn[class] {
-  background-color: #5147e6 !important;
+  background-color: var(--color-primary) !important;
   color: #ffffff !important;
   font-weight: 600;
   border-radius: 0.375rem;
@@ -830,7 +840,7 @@ html .text-primary-foreground,
 html .text-secondary-foreground,
 html .text-accent-foreground,
 html [class*="-foreground"] {
-  color: #5147e6 !important;
+  color: var(--color-primary) !important;
 }
 /* Keep white text white on intentionally dark surfaces. */
 html .app-sidebar,
@@ -845,7 +855,7 @@ html [data-on-light] * {
   color: #000000 !important;
 }
 html [data-on-light] a {
-  color: #5147e6 !important;
+  color: var(--color-primary) !important;
 }
 /* Sidebar links: white by default; active row flips to navy on its
    white panel. The aria-current selector wins on specificity. */
@@ -864,7 +874,7 @@ html .app-sidebar a:hover:not([aria-current="page"]) {
 html input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([data-bare]),
 html textarea:not([data-bare]),
 html select:not([data-bare]) {
-  border: 1px solid #5147e6 !important;
+  border: 1px solid var(--color-primary) !important;
 }
 /* Inputs marked data-bare opt out of the global border (e.g. the search
    bar inside the dark top header). */
@@ -880,7 +890,7 @@ html input[data-bare]::placeholder {
 html input:focus:not([type="checkbox"]):not([type="radio"]),
 html textarea:focus,
 html select:focus {
-  border-color: #5147e6 !important;
+  border-color: var(--color-primary) !important;
   outline: 2px solid rgba(0, 40, 104, 0.18) !important;
 }
 
@@ -931,7 +941,7 @@ html [data-on-dark] svg {
 
 /* ============================================================
    Section separation via background colors (no borders).
-   Palette: navy (#5147e6), green (#01411C), white, near-black.
+   Palette: navy (var(--color-primary)), green (#01411C), white, near-black.
    Surface tints: very-light blue (#f3f6fb), very-light green
    (#f0fdf4), pure white. Modal backdrops keep their dim.
    ============================================================ */
@@ -996,8 +1006,8 @@ html [role="switch"] {
   border-radius: 9999px !important;       /* keep pill shape */
 }
 html [role="switch"][aria-checked="true"] {
-  background-color: #5147e6 !important;  /* navy ON */
-  border-color: #5147e6 !important;
+  background-color: var(--color-primary) !important;  /* navy ON */
+  border-color: var(--color-primary) !important;
 }
 html [role="switch"] > * {
   background-color: #ffffff !important;
@@ -1037,7 +1047,7 @@ html div.fixed.inset-0 select:not([data-bare]) {
 html div.fixed.inset-0 input:not([data-bare]):focus,
 html div.fixed.inset-0 textarea:not([data-bare]):focus,
 html div.fixed.inset-0 select:not([data-bare]):focus {
-  border-color: #5147e6 !important;
+  border-color: var(--color-primary) !important;
   box-shadow: 0 0 0 2px rgba(0, 40, 104, 0.15) !important;
 }
 
@@ -1046,10 +1056,10 @@ html div.fixed.inset-0 select:not([data-bare]):focus {
    matchers here cover the most common Tailwind combos used by older forms. */
 html div.fixed.inset-0 button[class*="bg-blue-"],
 html div.fixed.inset-0 button[class*="bg-indigo-"] {
-  background-color: #5147e6 !important;
+  background-color: var(--color-primary) !important;
   color: #ffffff !important;
   border-radius: 0 !important;
-  border: 1px solid #5147e6 !important;
+  border: 1px solid var(--color-primary) !important;
 }
 html div.fixed.inset-0 button[class*="bg-green-"] {
   background-color: #012E14 !important;
@@ -1116,5 +1126,137 @@ html div.fixed.inset-0 [class*="bg-red-50"] {
   transition: color 0.15s ease;
 }
 .app-search-icon:hover {
-  color: #5147e6;
+  color: var(--color-primary);
+}
+
+/* =====================================================================
+   READABILITY + PRINT PASS
+   Appended last so it wins the cascade over the flatten-everything rules
+   above. Adds three things, all aligned to the "minimal · readable ·
+   printable" goal:
+     1. A small PROTECTED semantic status palette (survives the global
+        color-flatten so status meaning isn't lost / re-hacked per page).
+     2. Hairline borders on cards/panels (read better on screen, and —
+        unlike background tints — survive printing).
+     3. A full @media print stylesheet so EVERY screen prints cleanly,
+        not just the bespoke EntityList print window.
+   ===================================================================== */
+
+/* ---- 1. Protected semantic status palette --------------------------- */
+/* The global flatten rules turn every coloured bg white and coloured text
+   indigo, which erases status meaning. These opt specific elements back
+   into a small, consistent status palette that survives the reset. */
+html .status-success { color: #166534 !important; }
+html .status-warning { color: #b45309 !important; }
+html .status-danger  { color: #b91c1c !important; }
+html .status-info    { color: #1d4ed8 !important; }
+
+html .status-bg-success { background-color: #f0fdf4 !important; color: #166534 !important; }
+html .status-bg-warning { background-color: #fffbeb !important; color: #b45309 !important; }
+html .status-bg-danger  { background-color: #fef2f2 !important; color: #b91c1c !important; }
+html .status-bg-info    { background-color: #eff6ff !important; color: #1d4ed8 !important; }
+
+/* Status badge: square (house style), bold, with a 1px outline in its own
+   colour so the meaning still reads when the fill is dropped on print. */
+html .status-badge {
+  display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap;
+  padding: 0.1rem 0.45rem; font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.02em; text-transform: uppercase;
+  border: 1px solid currentColor !important;
+}
+
+/* ---- 2. Hairline card borders --------------------------------------- */
+/* Canonical "card" surfaces. The same heuristic the file already uses for
+   surfaces (rounded-lg + padding) plus explicit component classes. A 1px
+   hairline gives real separation on screen and prints reliably (background
+   tints are stripped by browsers when printing). */
+html .surface,
+html .card,
+html .kpi-card,
+html .dashboard-card,
+html main [class*="rounded-lg"][class*="p-"]:not(table):not(input):not(textarea):not(select):not(button) {
+  border: 1px solid #e5e7eb !important;
+  background-color: #ffffff !important;
+}
+
+/* ---- 3. PRINT STYLESHEET -------------------------------------------- */
+@media print {
+  /* Drop app chrome + interactive-only controls. */
+  html .app-sidebar,
+  html header.sticky,
+  html .app-search,
+  html nav,
+  html .no-print,
+  html [data-no-print],
+  html button,
+  html input[type="search"] { display: none !important; }
+
+  html, body { background: #ffffff !important; color: #000000 !important; }
+
+  /* Full-bleed content — remove the on-screen canvas tint + padding. */
+  html main {
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Cards/panels: bordered, and never split across a page break. */
+  html .surface,
+  html .card,
+  html .kpi-card,
+  html .dashboard-card,
+  html main [class*="rounded-lg"][class*="p-"]:not(table) {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Tables: repeat the header on every page, keep rows intact, visible grid. */
+  html table { width: 100% !important; border-collapse: collapse !important; }
+  html thead { display: table-header-group !important; }
+  html tfoot { display: table-footer-group !important; }
+  html tr, html td, html th { page-break-inside: avoid; break-inside: avoid; }
+  html th, html td { border: 1px solid #999999 !important; padding: 4px 8px !important; }
+  html thead th {
+    background: #eeeeee !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+
+  /* Status fills are dropped on paper — the badge keeps its outline so the
+     meaning still reads. */
+  html .status-badge { border: 1px solid currentColor !important; }
+
+  /* Keep headings with their content; reveal clipped content. */
+  html h1, html h2, html h3 { break-after: avoid; page-break-after: avoid; }
+  html * { overflow: visible !important; }
+
+  @page { margin: 14mm; }
+}
+
+/* =====================================================================
+   PATCH 3 — Reading measure + sticky table headers
+   ===================================================================== */
+
+/* Readable line length. The global reset strips Tailwind's max-w-* utilities,
+   so long forms / detail text otherwise span the full content width (1500px+).
+   Opt back in with `.measure` (forms, detail panes, prose). Data TABLES stay
+   full-bleed on purpose — only reading/editing columns are capped. */
+html .measure      { max-width: 44rem !important; }
+html .measure-wide { max-width: 72rem !important; }
+
+/* Sticky table header inside a bounded scroll region. Add `table-scroll` to
+   the element that directly wraps a <table>; the header then stays frozen
+   while the rows scroll. Pairs with the existing grid-bordered table style. */
+html .table-scroll { max-height: calc(100vh - 16rem); overflow: auto; }
+html .table-scroll > table { margin: 0; }
+html .table-scroll thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: #f3f6fb !important;
+}
+/* border-collapse drops a stuck header's bottom border in some browsers —
+   redraw it with a pseudo-element so the frozen header always has a baseline. */
+html .table-scroll thead th::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+  border-bottom: 1px solid #9ca3af;
 }

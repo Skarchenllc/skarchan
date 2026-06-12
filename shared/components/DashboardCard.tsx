@@ -38,8 +38,8 @@ export default function DashboardCard({
 
   return (
     <div
-      className="bg-white"
-      style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+      className="bg-white surface dashboard-card"
+      style={{ border: '1px solid #e5e7eb' }}
     >
       <div
         className="flex items-center justify-between px-4 py-3"

@@ -8,7 +8,6 @@ import { useSharedTheme } from '@/lib/shared-theme-hook';
 import { moduleBuilderAPI } from '@/lib/api';
 import {
   FiZap,
-  FiShield,
   FiTrendingUp,
   FiUsers,
   FiDollarSign,
@@ -20,6 +19,16 @@ import {
   FiShoppingCart,
 } from 'react-icons/fi';
 
+/**
+ * Public marketing landing (route "/"). Renders WITHOUT the AppShell but still
+ * inherits the global app-chrome reset in globals.css (flatten colours, strip
+ * shadows/radius, force link/heading colours, recolour every SVG slate…).
+ *
+ * Rather than fight that rule-by-rule, this page ships a scoped `lp-*` style
+ * block (specificity-boosted with `html` + `!important`) that re-asserts an
+ * intentional flat, navy + green marketing look. Brand colours still come from
+ * the white-label theme (theme.primaryColor / secondaryColor).
+ */
 export default function LandingPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -33,462 +42,304 @@ export default function LandingPage() {
         const list: any[] = (resp.data as any)?.data || (resp.data as any) || [];
         setActiveModuleCodes(new Set(list.filter(m => m.is_active).map(m => m.module_code)));
       } catch {
-        setActiveModuleCodes(new Set()); // on error, show none from filtered list
+        setActiveModuleCodes(new Set());
       }
     })();
   }, []);
 
-  // Get logo source (prefer uploaded file over URL)
   const logoSource = theme.logoFile || theme.logoUrl;
+  const navy = theme.primaryColor || '#002868';
+  const green = theme.secondaryColor || '#01411C';
 
-  // Redirect to control room if already logged in
+  // Redirect to control room if already logged in.
   useEffect(() => {
-    if (!loading && user) {
-      router.push('/nexacore');
-    }
+    if (!loading && user) router.push('/nexacore');
   }, [user, loading, router]);
 
-  // Show loading spinner while checking auth
   if (loading || (user && !loading)) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen" style={{ background: '#ffffff' }}>
+        <div className="lp-spinner" />
       </div>
     );
   }
 
   const allModules = [
-    { code: 'accounting',     name: 'Accounting', icon: FiDollarSign,  description: 'Financial Management' },
-    { code: 'hr',             name: 'HR',         icon: FiUsers,       description: 'Human Resources' },
-    { code: 'marketing',      name: 'Marketing',  icon: FiTrendingUp,  description: 'Marketing Automation' },
-    { code: 'sales',          name: 'Sales',      icon: FiBarChart2,   description: 'Sales Pipeline' },
-    { code: 'contacts',       name: 'Contacts',   icon: FiUsers,       description: 'People & Organizations' },
-    { code: 'production',     name: 'Production', icon: FiPackage,     description: 'Manufacturing Operations' },
-    { code: 'rd',             name: 'R&D',        icon: FiZap,         description: 'Research & Development' },
-    { code: 'administration', name: 'Admin',      icon: FiSettings,    description: 'Administration' },
-    { code: 'ecommerce',      name: 'E-commerce', icon: FiShoppingCart,description: 'E-commerce / POS' },
+    { code: 'accounting',     name: 'Accounting', icon: FiDollarSign,   description: 'Financial management' },
+    { code: 'hr',             name: 'HR',         icon: FiUsers,        description: 'People & payroll' },
+    { code: 'marketing',      name: 'Marketing',  icon: FiTrendingUp,   description: 'Campaigns & leads' },
+    { code: 'sales',          name: 'Sales',      icon: FiBarChart2,    description: 'Pipeline & orders' },
+    { code: 'contacts',       name: 'Contacts',   icon: FiUsers,        description: 'CRM & organizations' },
+    { code: 'production',     name: 'Production', icon: FiPackage,      description: 'Manufacturing ops' },
+    { code: 'rd',             name: 'R&D',        icon: FiZap,          description: 'Research & development' },
+    { code: 'administration', name: 'Admin',      icon: FiSettings,     description: 'Roles & settings' },
+    { code: 'ecommerce',      name: 'E-commerce', icon: FiShoppingCart, description: 'Storefront & POS' },
   ];
-  // Hide modules disabled in settings. While the active list is loading
-  // we show everything (avoids a flash of empty grid for unauthenticated
-  // visitors who shouldn't pay the wait either).
   const modules = activeModuleCodes
     ? allModules.filter(m => activeModuleCodes.has(m.code))
     : allModules;
 
-  const features = [
-    'Unified Business Management',
-    'Real-time Analytics & Reporting',
-    'Modular Architecture',
-    'Enterprise-Grade Security',
-    'Customizable Workflows',
-    'Multi-Module Integration',
+  const features: { title: string; body: string }[] = [
+    { title: 'Unified Business Management', body: 'Manage every aspect of your business from a single platform.' },
+    { title: 'Real-time Analytics & Reporting', body: 'Instant insights with powerful analytics and dashboards.' },
+    { title: 'Modular Architecture', body: 'Choose only the modules you need, and scale as you grow.' },
+    { title: 'Enterprise-Grade Security', body: 'Bank-level security with role-based access control.' },
+    { title: 'Customizable Workflows', body: 'Tailor workflows to match your business processes.' },
+    { title: 'Multi-Module Integration', body: 'Seamless, real-time data flow between every module.' },
+  ];
+
+  const tiers = [
+    { name: 'Starter', price: '$49', tag: 'For small teams getting started', popular: false,
+      cta: 'Get Started', href: '/register?plan=starter',
+      items: ['Up to 3 modules', '10 users included', '5 GB storage', 'Email support', 'Basic analytics'] },
+    { name: 'Professional', price: '$149', tag: 'For growing businesses', popular: true,
+      cta: 'Get Started', href: '/register?plan=professional',
+      items: ['Up to 6 modules', '50 users included', '50 GB storage', 'Priority support', 'Advanced analytics', 'Custom workflows'] },
+    { name: 'Enterprise', price: '$399', tag: 'For organizations at scale', popular: false,
+      cta: 'Contact Sales', href: '/register?plan=enterprise',
+      items: ['All 8 modules', 'Unlimited users', 'Unlimited storage', '24/7 dedicated support', 'White-label options', 'Custom integrations', 'SLA guarantee'] },
   ];
 
   return (
-    <div className="min-h-screen bg-white" style={{ scrollBehavior: 'smooth' }}>
-      {/* Navigation */}
-      <nav className="bg-white border-b-2 sticky top-0 z-50 backdrop-blur-sm bg-white/95" style={{ borderColor: theme.secondaryColor }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                {logoSource ? (
-                  <img src={logoSource} alt="Logo" className="h-10 w-auto object-contain" />
-                ) : (
-                  <div
-                    className="w-10 h-10 flex items-center justify-center"
-                    style={{ backgroundColor: theme.primaryColor }}
-                  >
-                    <FiZap className="w-6 h-6" style={{ color: theme.secondaryColor }} />
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-bold" style={{ color: theme.primaryColor }}>
-                    {theme.appName}
-                  </span>
-                  <span className="text-xl text-black">|</span>
-                  <span className="text-sm font-medium text-gray-600 italic">
-                    Powering Your Business Forward
-                  </span>
-                </div>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-6">
-              <a
-                href="#modules"
-                className="text-sm font-medium text-gray-700 hover:opacity-80 transition-opacity"
-              >
-                Products
-              </a>
-              <a
-                href="#pricing"
-                className="text-sm font-medium text-gray-700 hover:opacity-80 transition-opacity"
-              >
-                Pricing
-              </a>
-              <Link
-                href="/login"
-                className="px-4 py-2 text-sm font-medium text-black hover:opacity-80 transition-opacity"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="px-6 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: theme.secondaryColor }}
-              >
-                Get Started
-              </Link>
-            </div>
+    <div className="lp-root">
+      {/* Scoped landing styles — re-assert an intentional flat marketing look
+          over the global app-chrome reset. Specificity-boosted with html + !important. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        html .lp-root { background:#ffffff !important; }
+        html .lp-wrap { max-width:1140px; margin:0 auto; padding:0 28px; }
+        html .lp-stripe { display:flex; height:4px; }
+        html .lp-stripe i { flex:1; }
+
+        /* surfaces */
+        html .lp-card { background:#ffffff !important; border:1px solid #e5e7eb !important; }
+        html .lp-tint { background:#f6f7fb !important; }
+        html .lp-dark { background:${navy} !important; }
+        html .lp-dark, html .lp-dark * { color:#ffffff !important; }
+        html .lp-dark .lp-muted { color:#c9d6ea !important; }
+        html .lp-footer { background:#0f172a !important; }
+        html .lp-footer, html .lp-footer * { color:#cbd5e1 !important; }
+        html .lp-footer h3 { color:#ffffff !important; }
+
+        /* type */
+        html .lp-eyebrow { display:inline-flex; align-items:center; gap:.7rem; font-size:12.5px;
+          font-weight:700; letter-spacing:.18em; text-transform:uppercase; padding:0;
+          background:transparent !important; color:${navy} !important; }
+        html .lp-eyebrow::before { content:''; width:26px; height:2px; background:${navy}; display:inline-block; }
+        html .lp-h1 { font-size:clamp(2.4rem, 6vw, 4rem) !important; line-height:1.05 !important; font-weight:800 !important;
+          color:#0b1220 !important; letter-spacing:-.025em; }
+        html .lp-h1 .lp-accent { color:${navy} !important; }
+        html .lp-h2 { font-size:2.1rem !important; font-weight:800 !important; color:#0b1220 !important; letter-spacing:-.015em; }
+        html .lp-dark .lp-h2 { color:#ffffff !important; }
+        html .lp-lead { font-size:1.15rem; color:#475569 !important; }
+        html .lp-eyebrow-green { color:${green} !important; }
+        html .lp-eyebrow-green::before { background:${green}; }
+
+        /* icons */
+        html .lp-chip svg, html .lp-chip svg * { color:#ffffff !important; stroke:#ffffff !important; fill:none !important; }
+        html .lp-ico-green svg, html .lp-ico-green svg * { color:${green} !important; stroke:${green} !important; fill:none !important; }
+
+        /* buttons (anchors) — beat html a{color:navy!important} */
+        html a.lp-btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+          padding:.8rem 1.4rem; font-weight:600; font-size:15px; border:1.5px solid transparent !important;
+          text-decoration:none !important; white-space:nowrap; }
+        html a.lp-btn-primary, html a.lp-btn-primary:visited { background:${green} !important; color:#ffffff !important; }
+        html a.lp-btn-primary:hover { background:#012e14 !important; }
+        html a.lp-btn-outline, html a.lp-btn-outline:visited { background:#ffffff !important; color:${navy} !important; border-color:${navy} !important; }
+        html a.lp-btn-outline:hover { background:#f6f7fb !important; }
+        html a.lp-btn-white, html a.lp-btn-white:visited { background:#ffffff !important; color:${navy} !important; }
+        html a.lp-btn-ghost, html a.lp-btn-ghost:visited { background:transparent !important; color:#ffffff !important; border-color:rgba(255,255,255,.55) !important; }
+        html a.lp-nav-cta, html a.lp-nav-cta:visited { background:${green} !important; color:#ffffff !important; padding:.55rem 1.1rem; font-weight:600; font-size:14px; }
+        html a.lp-textlink, html a.lp-textlink:visited { color:${navy} !important; font-weight:600; font-size:15px; display:inline-flex; align-items:center; gap:.4rem; text-decoration:none !important; white-space:nowrap; }
+        html a.lp-textlink:hover { text-decoration:underline !important; }
+        html a.lp-btn svg, html a.lp-btn svg *, html a.lp-textlink svg, html a.lp-textlink svg * { color:inherit !important; stroke:currentColor !important; fill:none !important; }
+
+        /* nav */
+        html .lp-nav { position:sticky; top:0; z-index:50; background:#ffffff !important; border-bottom:1px solid #e5e7eb !important; }
+        html .lp-nav a { color:#334155 !important; text-decoration:none !important; white-space:nowrap; }
+        html .lp-nav a.lp-brandname { color:${navy} !important; }
+        html .lp-nav a:hover { color:${navy} !important; }
+
+        html .lp-spinner { width:40px; height:40px; border:3px solid #e5e7eb; border-top-color:${navy};
+          border-radius:9999px; animation:lpspin 1s linear infinite; }
+        @keyframes lpspin { to { transform:rotate(360deg); } }
+      ` }} />
+
+      {/* NAV */}
+      <nav className="lp-nav">
+        <div className="lp-wrap" style={{ display: 'flex', alignItems: 'center', height: '68px', gap: '16px' }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
+            {logoSource ? (
+              <img src={logoSource} alt="Logo" style={{ height: '34px', width: 'auto', objectFit: 'contain' }} />
+            ) : (
+              <span className="lp-chip" style={{ width: 34, height: 34, background: navy, display: 'grid', placeItems: 'center' }}>
+                <FiZap style={{ width: 18, height: 18 }} />
+              </span>
+            )}
+            <span className="lp-brandname" style={{ fontSize: '19px', fontWeight: 700 }}>{theme.appName}</span>
+          </Link>
+          <span style={{ color: '#94a3b8', fontSize: '13.5px', borderLeft: '1px solid #e5e7eb', paddingLeft: '14px' }}>
+            Powering Your Business Forward
+          </span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <a href="#modules" style={{ fontSize: '14.5px', fontWeight: 600 }}>Products</a>
+            <a href="#pricing" style={{ fontSize: '14.5px', fontWeight: 600 }}>Pricing</a>
+            <Link href="/login" style={{ fontSize: '14.5px', fontWeight: 600 }}>Sign In</Link>
+            <Link href="/register" className="lp-btn lp-nav-cta">Get Started</Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            <h1 className="text-5xl md:text-6xl font-bold text-black mb-6">
-              Enterprise Business Management
-              <span className="block mt-2" style={{ color: theme.primaryColor }}>
-                All-in-One Platform
-              </span>
-            </h1>
-            <div className="flex justify-center gap-4">
-              <Link
-                href="/register"
-                className="px-8 py-4 text-lg font-medium text-white rounded-lg hover:opacity-90 transition-opacity shadow-lg"
-                style={{ backgroundColor: theme.secondaryColor }}
-              >
-                Start Free Trial
-                <FiArrowRight className="inline-block ml-2 w-5 h-5" />
-              </Link>
-              <Link
-                href="/login"
-                className="px-8 py-4 text-lg font-medium border-2 rounded-lg hover:bg-gray-50 transition-colors"
-                style={{ borderColor: theme.primaryColor, color: theme.primaryColor }}
-              >
-                Sign In to Control Room
-              </Link>
-            </div>
-          </div>
+      {/* HERO */}
+      <header className="lp-wrap" style={{ textAlign: 'center', paddingTop: '112px', paddingBottom: '96px' }}>
+        <span className="lp-eyebrow">Enterprise Business Management</span>
+        <h1 className="lp-h1 text-hero" style={{ margin: '26px 0 0' }}>
+          The all-in-one platform<br /><span className="lp-accent">to run your business</span>
+        </h1>
+        <p className="lp-lead" style={{ maxWidth: '600px', margin: '24px auto 0' }}>
+          Enterprise-grade business management that scales with your organization — every module,
+          every team, every metric in one connected control room.
+        </p>
+        <div style={{ display: 'flex', gap: '24px', alignItems: 'center', justifyContent: 'center', marginTop: '36px', flexWrap: 'wrap' }}>
+          <Link href="/register" className="lp-btn lp-btn-primary" style={{ padding: '0.95rem 1.7rem', fontSize: '15.5px' }}>Start Free Trial <FiArrowRight style={{ width: 18, height: 18 }} /></Link>
+          <Link href="/login" className="lp-textlink">Sign in to Control Room <FiArrowRight style={{ width: 15, height: 15 }} /></Link>
         </div>
-
-        {/* Background Decoration */}
-        <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div
-            className="absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl opacity-10"
-            style={{ backgroundColor: theme.primaryColor }}
-          ></div>
-          <div
-            className="absolute bottom-0 left-0 w-96 h-96 rounded-full blur-3xl opacity-10"
-            style={{ backgroundColor: theme.secondaryColor }}
-          ></div>
+        <div style={{ marginTop: '24px', color: '#64748b', fontSize: '13px', letterSpacing: '.01em' }}>
+          14-day free trial · No credit card required · {modules.length} integrated modules
         </div>
-      </div>
+      </header>
 
-      {/* Features Section */}
-      <div className="bg-gray-50 py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-black mb-4">Why Choose {theme.appName}?</h2>
+      {/* FEATURES */}
+      <section className="lp-tint" style={{ padding: '76px 0' }}>
+        <div className="lp-wrap">
+          <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 48px' }}>
+            <span className="lp-eyebrow">Why {theme.appName}</span>
+            <h2 className="lp-h2" style={{ margin: '16px 0 0' }}>Everything your business needs, unified</h2>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <div key={index} className="bg-white p-6 rounded-lg shadow-sm border-2 border-gray-100 hover:shadow-md transition-shadow">
-                <div className="flex items-start gap-3">
-                  <FiCheckCircle className="w-6 h-6 flex-shrink-0 mt-1" style={{ color: theme.secondaryColor }} />
-                  <div>
-                    <h3 className="font-semibold text-lg text-black mb-2">{feature}</h3>
-                    <p className="text-gray-600 text-sm">
-                      {index === 0 && 'Manage all aspects of your business from a single platform'}
-                      {index === 1 && 'Get instant insights with powerful analytics and dashboards'}
-                      {index === 2 && 'Choose only the modules you need, scale as you grow'}
-                      {index === 3 && 'Bank-level security with role-based access control'}
-                      {index === 4 && 'Tailor workflows to match your business processes'}
-                      {index === 5 && 'Seamless data flow between all modules'}
-                    </p>
-                  </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
+            {features.map((f) => (
+              <div key={f.title} className="lp-card" style={{ padding: '24px' }}>
+                <div className="lp-ico-green" style={{ marginBottom: '12px' }}>
+                  <FiCheckCircle style={{ width: 24, height: 24 }} />
                 </div>
+                <h3 style={{ fontSize: '17px', fontWeight: 700, margin: '0 0 7px' }}>{f.title}</h3>
+                <p style={{ fontSize: '14.5px', color: '#475569', margin: 0 }}>{f.body}</p>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Modules Section */}
-      <div id="modules" className="py-20 scroll-mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-black mb-4">Integrated Business Modules</h2>
+      {/* MODULES */}
+      <section id="modules" style={{ padding: '76px 0', scrollMarginTop: '68px' }}>
+        <div className="lp-wrap">
+          <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 48px' }}>
+            <span className="lp-eyebrow lp-eyebrow-green">Integrated Modules</span>
+            <h2 className="lp-h2" style={{ margin: '16px 0 0' }}>One platform. Every department.</h2>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {modules.map((module, index) => {
-              const Icon = module.icon;
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+            {modules.map((m, i) => {
+              const Icon = m.icon;
+              const c = i % 2 === 0 ? navy : green;
               return (
-                <div
-                  key={index}
-                  className="bg-white p-6 rounded-lg shadow-sm border-2 hover:shadow-lg transition-all cursor-pointer group"
-                  style={{ borderColor: index % 2 === 0 ? theme.primaryColor : theme.secondaryColor }}
-                >
-                  <div
-                    className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"
-                    style={{ backgroundColor: index % 2 === 0 ? theme.primaryColor : theme.secondaryColor }}
-                  >
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="font-bold text-lg text-black mb-2">{module.name}</h3>
+                <div key={m.code} className="lp-card" style={{ padding: '22px' }}>
+                  <span className="lp-chip" style={{ width: 44, height: 44, background: c, display: 'grid', placeItems: 'center', marginBottom: '12px' }}>
+                    <Icon style={{ width: 22, height: 22 }} />
+                  </span>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 2px' }}>{m.name}</h3>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{m.description}</p>
                 </div>
               );
             })}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Pricing Section */}
-      <div id="pricing" className="bg-gray-50 py-20 scroll-mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-black mb-4">Simple, Transparent Pricing</h2>
+      {/* PRICING */}
+      <section id="pricing" className="lp-tint" style={{ padding: '76px 0', scrollMarginTop: '68px' }}>
+        <div className="lp-wrap">
+          <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 48px' }}>
+            <span className="lp-eyebrow">Pricing</span>
+            <h2 className="lp-h2" style={{ margin: '16px 0 0' }}>Simple, transparent pricing</h2>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Starter Plan */}
-            <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-8 hover:shadow-lg transition-shadow">
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-black mb-2">Starter</h3>
-                <div className="flex items-baseline justify-center gap-2">
-                  <span className="text-5xl font-bold text-black">$49</span>
-                  <span className="text-gray-600">/month</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', alignItems: 'start' }}>
+            {tiers.map((t) => (
+              <div key={t.name} className="lp-card" style={{ padding: '30px 28px', position: 'relative', ...(t.popular ? { border: `2px solid ${green}` } : {}) }}>
+                {t.popular && (
+                  <span style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: green, color: '#fff', fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', padding: '5px 13px', whiteSpace: 'nowrap' }}>
+                    MOST POPULAR
+                  </span>
+                )}
+                <h3 style={{ fontSize: '19px', fontWeight: 700, margin: 0 }}>{t.name}</h3>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '12px 0 4px' }}>
+                  <span style={{ fontSize: '2.6rem', fontWeight: 800, letterSpacing: '-.02em', color: t.popular ? green : '#0b1220' }}>{t.price}</span>
+                  <span style={{ color: '#64748b', fontSize: '15px' }}>/ month</span>
                 </div>
+                <div style={{ color: '#64748b', fontSize: '14px' }}>{t.tag}</div>
+                <div style={{ height: '1px', background: '#e5e7eb', margin: '20px 0' }} />
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: '11px' }}>
+                  {t.items.map((it) => (
+                    <li key={it} style={{ display: 'flex', alignItems: 'flex-start', gap: '9px', fontSize: '14.5px', color: '#334155' }}>
+                      <span className="lp-ico-green" style={{ flex: 'none', marginTop: '1px' }}><FiCheckCircle style={{ width: 18, height: 18 }} /></span>
+                      {it}
+                    </li>
+                  ))}
+                </ul>
+                <Link href={t.href} className={`lp-btn ${t.popular ? 'lp-btn-primary' : 'lp-btn-outline'}`} style={{ width: '100%' }}>{t.cta}</Link>
               </div>
-
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Up to 3 modules</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">10 users included</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">5GB storage</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Email support</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Basic analytics</span>
-                </li>
-              </ul>
-
-              <Link
-                href="/register?plan=starter"
-                className="block w-full text-center px-6 py-3 border-2 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                style={{ borderColor: theme.primaryColor, color: theme.primaryColor }}
-              >
-                Get Started
-              </Link>
-            </div>
-
-            {/* Professional Plan (Highlighted) */}
-            <div className="bg-white rounded-lg shadow-lg border-2 p-8 relative transform md:scale-105 hover:shadow-xl transition-all" style={{ borderColor: theme.secondaryColor }}>
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                <span className="px-4 py-1 text-sm font-bold text-white rounded-full" style={{ backgroundColor: theme.secondaryColor }}>
-                  MOST POPULAR
-                </span>
-              </div>
-
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-black mb-2">Professional</h3>
-                <div className="flex items-baseline justify-center gap-2">
-                  <span className="text-5xl font-bold text-black">$149</span>
-                  <span className="text-gray-600">/month</span>
-                </div>
-              </div>
-
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Up to 6 modules</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">50 users included</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">50GB storage</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Priority support</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Advanced analytics</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Custom workflows</span>
-                </li>
-              </ul>
-
-              <Link
-                href="/register?plan=professional"
-                className="block w-full text-center px-6 py-3 rounded-lg font-medium text-white hover:opacity-90 transition-opacity shadow-lg"
-                style={{ backgroundColor: theme.secondaryColor }}
-              >
-                Get Started
-              </Link>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-8 hover:shadow-lg transition-shadow">
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-black mb-2">Enterprise</h3>
-                <div className="flex items-baseline justify-center gap-2">
-                  <span className="text-5xl font-bold text-black">$399</span>
-                  <span className="text-gray-600">/month</span>
-                </div>
-              </div>
-
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">All 8 modules</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Unlimited users</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Unlimited storage</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">24/7 dedicated support</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">White-label options</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">Custom integrations</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <FiCheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: theme.secondaryColor }} />
-                  <span className="text-gray-700">SLA guarantee</span>
-                </li>
-              </ul>
-
-              <Link
-                href="/register?plan=enterprise"
-                className="block w-full text-center px-6 py-3 border-2 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                style={{ borderColor: theme.primaryColor, color: theme.primaryColor }}
-              >
-                Contact Sales
-              </Link>
-            </div>
+            ))}
           </div>
-
-          <p className="text-center text-gray-600 mt-12">
+          <p style={{ textAlign: 'center', marginTop: '32px', color: '#64748b', fontSize: '14.5px' }}>
             All plans include a 14-day free trial. No credit card required.
           </p>
         </div>
-      </div>
+      </section>
 
-      {/* CTA Section */}
-      <div className="py-20" style={{ backgroundColor: theme.primaryColor }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">Ready to Transform Your Business?</h2>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Join thousands of businesses already using {theme.appName} to streamline their operations
+      {/* CTA */}
+      <section className="lp-dark" style={{ padding: '76px 0' }}>
+        <div className="lp-wrap" style={{ textAlign: 'center' }}>
+          <h2 className="lp-h2 text-hero">Ready to transform your business?</h2>
+          <p className="lp-muted" style={{ fontSize: '1.15rem', maxWidth: '560px', margin: '16px auto 30px' }}>
+            Join thousands of businesses already using {theme.appName} to streamline their operations.
           </p>
-          <div className="flex justify-center gap-4">
-            <Link
-              href="/register"
-              className="px-8 py-4 text-lg font-medium bg-white rounded-lg hover:bg-gray-100 transition-colors shadow-lg"
-              style={{ color: theme.primaryColor }}
-            >
-              Create Your Account
-            </Link>
-            <Link
-              href="/login"
-              className="px-8 py-4 text-lg font-medium border-2 border-white text-white rounded-lg hover:bg-white/10 transition-colors"
-            >
-              Sign In
-            </Link>
+          <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/register" className="lp-btn lp-btn-white">Create Your Account</Link>
+            <Link href="/login" className="lp-btn lp-btn-ghost">Sign In</Link>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center gap-3 mb-4">
-                {logoSource ? (
-                  <img src={logoSource} alt="Logo" className="h-10 w-auto object-contain" />
-                ) : (
-                  <div
-                    className="w-10 h-10 flex items-center justify-center"
-                    style={{ backgroundColor: theme.primaryColor }}
-                  >
-                    <FiZap className="w-6 h-6" style={{ color: theme.secondaryColor }} />
-                  </div>
-                )}
-                <span className="text-xl font-bold">{theme.appName}</span>
+      {/* FOOTER */}
+      <footer className="lp-footer" style={{ padding: '56px 0 28px' }}>
+        <div className="lp-wrap">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '36px' }}>
+            <div style={{ gridColumn: 'span 2', minWidth: '240px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '14px' }}>
+                {logoSource
+                  ? <img src={logoSource} alt="Logo" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
+                  : <span className="lp-chip" style={{ width: 32, height: 32, background: navy, display: 'grid', placeItems: 'center' }}><FiZap style={{ width: 16, height: 16 }} /></span>}
+                <span style={{ fontSize: '18px', fontWeight: 700, color: '#fff' }}>{theme.appName}</span>
               </div>
-              <p className="text-gray-400 mb-4">
+              <p style={{ fontSize: '14px', maxWidth: '320px', lineHeight: 1.6 }}>
                 Enterprise-grade business management platform designed to scale with your organization.
               </p>
             </div>
-
             <div>
-              <h3 className="font-semibold mb-4">Quick Links</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link href="/login" className="hover:text-white transition-colors">
-                    Sign In
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/register" className="hover:text-white transition-colors">
-                    Register
-                  </Link>
-                </li>
+              <h3 style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '12px' }}>Quick Links</h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
+                <li><Link href="/login">Sign In</Link></li>
+                <li><Link href="/register">Register</Link></li>
               </ul>
             </div>
-
             <div>
-              <h3 className="font-semibold mb-4">Support</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Documentation
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Contact Us
-                  </a>
-                </li>
+              <h3 style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '12px' }}>Support</h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
+                <li><a href="#">Documentation</a></li>
+                <li><a href="#">Contact Us</a></li>
               </ul>
             </div>
           </div>
-
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} {theme.appName}. All rights reserved.</p>
+          <div style={{ marginTop: '40px', paddingTop: '22px', borderTop: '1px solid rgba(255,255,255,.12)', textAlign: 'center', fontSize: '13.5px' }}>
+            © {new Date().getFullYear()} {theme.appName}. All rights reserved.
           </div>
         </div>
       </footer>

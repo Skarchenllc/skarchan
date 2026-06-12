@@ -824,7 +824,7 @@ export default function DynamicEntityForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 measure">
       {aiEnabled && (
         <div className="rounded-lg p-3" style={{ border: '1px solid #5147e6', backgroundColor: '#eff5ff' }}>
           <div className="text-sm font-semibold mb-1 inline-flex items-center gap-1.5" style={{ color: '#5147e6' }}>

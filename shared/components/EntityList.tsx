@@ -890,7 +890,7 @@ export default function EntityList({
         )}
 
         {fields.length > 0 && (
-          <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+          <div className="bg-white rounded-lg shadow table-scroll border border-gray-200">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>

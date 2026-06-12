@@ -27,7 +27,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 
 // ─── Inline SVG chart primitives (no external deps) ──────────────
 
-function VBarChart({ rows, height = 160, color = '#5147e6', valueLabel }: {
+function VBarChart({ rows, height = 160, color = '#002868', valueLabel }: {
   rows: { label: string; value: number }[];
   height?: number;
   color?: string;
@@ -80,10 +80,10 @@ function LineGraph({ rows, height = 160 }: {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
       <line x1={0} x2={W} y1={H - padBottom} y2={H - padBottom} stroke="#e5e7eb" />
-      <path d={path} fill="none" stroke="#5147e6" strokeWidth={2} />
+      <path d={path} fill="none" stroke="#002868" strokeWidth={2} />
       {pts.map((p) => (
         <g key={p.label}>
-          <circle cx={p.x} cy={p.y} r={3} fill="#5147e6" />
+          <circle cx={p.x} cy={p.y} r={3} fill="#002868" />
           <text x={p.x} y={p.y - 7} textAnchor="middle"
             style={{ fontSize: 10, fill: '#0f172a', fontWeight: 600 }}>
             {p.value > 0 ? p.value : ''}
@@ -104,8 +104,9 @@ function Donut({ rows, size = 150 }: {
 }) {
   const total = rows.reduce((s, r) => s + r.value, 0);
   if (total === 0) return <div className="text-xs italic text-center py-6" style={{ color: '#6b7280' }}>No data</div>;
-  // Navy + a couple of darker/lighter tones from the same family
-  const PALETTE = ['#5147e6', '#1e3a72', '#3d5a99', '#5a7ab8', '#7896d1', '#a6b7dc', '#cbd5e1'];
+  // Categorical chart palette (see shared/components/chartColors.ts) — distinct
+  // hues so adjacent donut slices read apart, instead of a single navy ramp.
+  const PALETTE = ['#002868', '#01411C', '#b22234', '#c77800', '#2c7fb8', '#6b3fa0', '#0f9b8e', '#8a8d98'];
   const r = size / 2;
   const inner = r * 0.6;
   let acc = 0;
@@ -294,7 +295,7 @@ export default function HrDashboardPage() {
         </div>
       </div>
       {showStartDate
-        ? <Calendar className="w-4 h-4 shrink-0" style={{ color: '#5147e6' }} />
+        ? <Calendar className="w-4 h-4 shrink-0" style={{ color: '#002868' }} />
         : <StatusBadge status={String(get(r, 'status') || 'pending')} />}
     </div>
   );
@@ -382,7 +383,7 @@ export default function HrDashboardPage() {
         {pendingLeave > 0 && (
           <div className="flex items-start gap-3 py-2">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#b45309' }} />
-            <Link href="/hr/leaves" className="text-sm font-semibold" style={{ color: '#5147e6' }}>
+            <Link href="/hr/leaves" className="text-sm font-semibold" style={{ color: '#002868' }}>
               {pendingLeave} leave request{pendingLeave === 1 ? '' : 's'} awaiting approval
             </Link>
           </div>
