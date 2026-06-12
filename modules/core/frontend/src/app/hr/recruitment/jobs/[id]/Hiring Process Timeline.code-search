@@ -1,0 +1,29 @@
+# Query: Hiring Process Timeline
+# ContextLines: 1
+
+7 results - 3 files
+
+modules/human-resources/frontend/src/app/recruitment/jobs/[id]/page.tsx:
+   109  
+   110:   // Hiring Process Timeline
+   111    hiring_phases?: HiringPhase[];
+
+  1403  
+  1404:       {/* Hiring Process Timeline - 3 Phase System */}
+  1405        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+
+  1407            <div className="mb-4">
+modules/human-resources/frontend/src/app/recruitment/jobs/[id]/page.tsx.bak:
+   109  
+   110:   // Hiring Process Timeline
+   111    hiring_phases?: HiringPhase[];
+
+  1403  
+  1404:       {/* Hiring Process Timeline - 3 Phase System */}
+  1405        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+
+  1407            <div className="mb-4">
+  1408:             
+modules/human-resources/frontend/src/app/recruitment/new/page.tsx:
+  787                  <div>
+  788:                   

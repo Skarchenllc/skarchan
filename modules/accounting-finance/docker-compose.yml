@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: accounting-postgres
+    environment:
+      POSTGRES_DB: accounting_finance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - accounting-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: accounting-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - accounting-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: accounting-backend
+    ports:
+      - "8004:8004"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/accounting_finance
+      REDIS_URL: redis://redis:6379/4
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - accounting-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: accounting-frontend
+    ports:
+      - "3004:3004"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8004
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - accounting-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  accounting-network:
+    driver: bridge

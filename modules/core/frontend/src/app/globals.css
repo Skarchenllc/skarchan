@@ -1,0 +1,1120 @@
+@import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dashboard design faces (Skarchen handoff): Schibsted Grotesk for display text
+   and numbers, Hanken Grotesk for body/UI. Scoped via classes so they only apply
+   where opted in. */
+.font-display { font-family: 'Schibsted Grotesk', system-ui, sans-serif; }
+.font-ui { font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+
+:root {
+  /* Colors */
+  --color-primary: #5147e6;
+  --color-secondary: #01411C;
+  --color-text: #000000;        /* black body text (brand requirement) */
+  --color-text-muted: #475569;  /* slate-600 — secondary/caption copy only */
+  --color-heading: #000000;     /* black headings — hierarchy via size/weight */
+  --color-background: #f1f5f9;   /* slate-100 — page bg, gives white cards real contrast */
+  --color-card-bg: #ffffff;
+  --color-border: #e2e8f0;       /* slate-200 — cleaner, slightly more defined hairline */
+  --color-hover: #f1f5f9;
+  --color-sidebar: #1f2937;
+  --color-header: #ffffff;
+
+  /* Typography — Hanken Grotesk for body/UI (Skarchen design system face) */
+  --font-family: 'Hanken Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Schibsted Grotesk', 'Hanken Grotesk', system-ui, sans-serif;
+  --font-size-base: 16px;
+  --font-size-sm: 0.875rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+
+  /* Spacing */
+  --spacing-unit: 1rem;
+  --spacing-xs: calc(var(--spacing-unit) * 0.25);
+  --spacing-sm: calc(var(--spacing-unit) * 0.5);
+  --spacing-md: var(--spacing-unit);
+  --spacing-lg: calc(var(--spacing-unit) * 1.5);
+  --spacing-xl: calc(var(--spacing-unit) * 2);
+
+  /* Border */
+  --border-radius: 0.375rem;
+  --border-width: 1px;
+
+  /* Effects */
+  --animation-duration: 0.2s;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+
+  /* Icon */
+  --icon-size: 1.25rem;
+  --icon-color: var(--color-primary);
+}
+
+:root.dark {
+  --color-primary: #5147e6;
+  --color-secondary: #01411C;
+  --color-text: #ffffff;
+  --color-background: #111827;
+  --color-card-bg: #1f2937;
+  --color-border: #374151;
+  --color-hover: #374151;
+  --color-sidebar: #0f172a;
+  --color-header: #1f2937;
+}
+
+:root.compact {
+  --spacing-unit: 0.75rem;
+}
+
+/* Smooth theme transitions by default — but NOT forced with !important, so a
+   component can opt out (e.g. instant feedback) without fighting this rule. */
+* {
+  transition: background-color var(--animation-duration) ease,
+              color var(--animation-duration) ease,
+              border-color var(--animation-duration) ease;
+}
+
+body {
+  color: var(--color-text) !important;
+  background: var(--color-background) !important;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+}
+
+/* Force theme colors on all instances */
+[class*="bg-[#5147e6]"],
+.bg-primary {
+  background-color: var(--color-primary) !important;
+}
+
+[class*="bg-[#01411C]"],
+.bg-secondary {
+  background-color: var(--color-secondary) !important;
+}
+
+[class*="text-[#5147e6]"],
+.text-primary {
+  color: var(--color-primary) !important;
+}
+
+[class*="text-[#01411C]"],
+.text-secondary {
+  color: var(--color-secondary) !important;
+}
+
+[class*="border-[#5147e6]"],
+.border-primary {
+  border-color: var(--color-primary) !important;
+}
+
+[class*="border-[#01411C]"],
+.border-secondary {
+  border-color: var(--color-secondary) !important;
+}
+
+/* Text colors */
+.text-black,
+[class*="text-gray-900"] {
+  color: var(--color-text) !important;
+}
+
+/* Background colors */
+.bg-gray-50 {
+  background-color: var(--color-background) !important;
+}
+
+.bg-white {
+  background-color: var(--color-card-bg) !important;
+}
+
+/* Border colors */
+.border-gray-200,
+.border-gray-300 {
+  border-color: var(--color-border) !important;
+}
+
+/* Hover states */
+.hover\:bg-gray-50:hover,
+.hover\:bg-gray-100:hover {
+  background-color: var(--color-hover) !important;
+}
+
+.hover\:text-[#01411C]:hover {
+  color: var(--color-secondary) !important;
+}
+
+.hover\:border-[#01411C]:hover {
+  border-color: var(--color-secondary) !important;
+}
+
+/* Sidebar styling */
+.bg-gray-900 {
+  background-color: var(--color-sidebar) !important;
+}
+
+/* Cards: give the bare `.rounded` utility the themed default radius, but DON'T
+   override the explicit Tailwind rounding scale (rounded-md/lg/xl/2xl/full/none)
+   — a broad [class*="rounded-"] !important here silently flattened every pill
+   and large radius in the app to 6px. */
+.rounded {
+  border-radius: var(--border-radius);
+}
+
+/* Shadows - only if not disabled */
+:root:not(.no-shadows) .shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+:root:not(.no-shadows) .shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+:root:not(.no-shadows) .shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+:root.no-shadows * {
+  box-shadow: none !important;
+}
+
+/* Icons */
+svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Animation classes */
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #3b82f6;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ----------------------------------------------------------------------- */
+/* Site-wide uniform style: white background, dark black text, opaque forms */
+/* ----------------------------------------------------------------------- */
+
+html,
+body {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Form elements: always solid white with black text and a visible border.
+   Fixes pages that render forms with transparent backgrounds inheriting
+   from translucent parents. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]),
+textarea,
+select,
+fieldset,
+form {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]),
+textarea,
+select {
+  border: 1px solid #d1d5db !important;
+}
+
+input:focus:not([type="checkbox"]):not([type="radio"]),
+textarea:focus,
+select:focus {
+  border-color: #5147e6 !important;
+  outline: 2px solid rgba(81, 71, 230, 0.22) !important;
+  outline-offset: 0 !important;
+}
+
+html input::placeholder,
+html textarea::placeholder,
+html input::-webkit-input-placeholder,
+html textarea::-webkit-input-placeholder {
+  color: #9ca3af !important;
+  opacity: 1 !important;
+}
+
+/* Tailwind transparent utilities should not produce see-through forms */
+.bg-transparent input,
+.bg-transparent textarea,
+.bg-transparent select,
+form.bg-transparent,
+.form-transparent {
+  background-color: #ffffff !important;
+}
+
+/* Modal/dialog content panels: opaque white */
+[role="dialog"] > *,
+.modal-content,
+.dialog-content,
+[data-radix-popper-content-wrapper] > * {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Cards / surfaces that some modules left without explicit backgrounds */
+.card,
+[class*="rounded-lg"][class*="border"],
+[class*="rounded-xl"][class*="border"] {
+  background-color: #ffffff !important;
+}
+
+/* Text utility unification — ensure all greyed body text is just black */
+.text-gray-900,
+.text-gray-800,
+.text-gray-700,
+.text-black {
+  color: #000000 !important;
+}
+
+/* shadcn/ui utility classes that modules use but core's tailwind config
+   does not define. Without these, panels/cards render transparent. */
+.bg-card,
+.bg-background,
+.bg-popover,
+.bg-muted,
+.bg-secondary,
+.bg-accent,
+.bg-input {
+  background-color: #ffffff !important;
+}
+
+.text-card-foreground,
+.text-foreground,
+.text-popover-foreground,
+.text-muted-foreground,
+.text-secondary-foreground,
+.text-accent-foreground {
+  color: #000000 !important;
+}
+
+.text-primary-foreground {
+  color: #ffffff !important;
+}
+
+.border-input,
+.border-border {
+  border-color: #d1d5db !important;
+}
+
+/* Modal/dialog panels of any structure: anything fixed-positioned that
+   covers the viewport with bg-black/50 (or similar) holds an inner panel
+   that needs to be solid white. */
+[class*="fixed"][class*="inset-0"] > *:not([class*="bg-black"]):not([class*="backdrop"]) {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Uniform action-button style: white background, blue border.
+   Applies only to actual <button> elements and submit/reset/button inputs.
+   Buttons inside <nav>, headers, menus, tablists, and dropdowns are
+   excluded — those are navigation/menu items, not action buttons.
+   Selectors are specificity-boosted (button[class], html button) so they
+   beat earlier rules like .bg-primary that target color-utility classes. */
+/* ------------------------------------------------------------------ */
+
+html button,
+html button[class],
+html input[type="submit"],
+html input[type="button"],
+html input[type="reset"] {
+  background-color: transparent !important;
+  color: #5147e6 !important;
+  border: 0 !important;
+  /* padding intentionally not set — let the caller's Tailwind classes
+     (px-3 py-2, etc.) provide vertical rhythm. Forcing 0.25rem 0.5rem
+     here caused dropdown buttons to render at a different height than
+     plain Link tabs. */
+}
+
+/* Carve-out: bulk-selection action bar. These buttons sit on a dark fill and
+   carry their own colors (white / red / link). Exempt them from the white-
+   button normalization above. Selectors are specificity-boosted with [class]
+   so they beat `html button[class]` (0,0,1,2). */
+html button.bulk-bar-btn[class] {
+  background-color: #ffffff !important;
+  color: #5147e6 !important;
+  border: 0 !important;
+}
+html button.bulk-bar-btn-danger[class] {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+html button.bulk-bar-link[class] {
+  background-color: transparent !important;
+  color: #ffffff !important;
+}
+html button.bulk-bar-btn[class]:hover:not(:disabled) {
+  background-color: #f3f4f6 !important;
+  color: #5147e6 !important;
+  text-decoration: none;
+}
+html button.bulk-bar-btn-danger[class]:hover:not(:disabled) {
+  background-color: #b91c1c !important;
+  color: #ffffff !important;
+  text-decoration: none;
+}
+html button.bulk-bar-link[class]:hover:not(:disabled) {
+  background-color: transparent !important;
+  color: #ffffff !important;
+  text-decoration: underline;
+}
+
+/* Carve-out: colored approve/reject action buttons (AI Jobs, approvals, etc.).
+   Exempt from the white-button normalization so they keep their semantic color. */
+html button.btn-approve[class] { background-color: #01411C !important; color: #ffffff !important; border: 0 !important; }
+html button.btn-approve[class]:hover:not(:disabled) { background-color: #012E14 !important; color: #ffffff !important; }
+html button.btn-reject[class] { background-color: #f1f5f9 !important; color: #475569 !important; border: 0 !important; }
+html button.btn-reject[class]:hover:not(:disabled) { background-color: #e2e8f0 !important; color: #475569 !important; }
+
+/* Carve-out: filled primary action button (e.g. Download PDF). Keeps a solid
+   navy fill with white text instead of the flattened transparent style. */
+html button.btn-primary[class] { background-color: #5147e6 !important; color: #ffffff !important; border: 0 !important; }
+html button.btn-primary[class]:hover:not(:disabled) { background-color: #001b4a !important; color: #ffffff !important; }
+html button.btn-primary[class]:disabled { opacity: 0.6 !important; }
+html button.btn-primary[class] svg { color: #ffffff !important; }
+
+/* Carve-outs: navigation, headers, menus, tabs, dropdowns. Buttons inside
+   these are nav/menu controls and should keep their own styling.
+   Specificity must beat `html button[class]` (0,0,1,2). */
+html nav button,
+html nav button[class],
+html header button,
+html header button[class],
+html [role="navigation"] button,
+html [role="menu"] button,
+html [role="menubar"] button,
+html [role="tablist"] button,
+html .menu button,
+html .dropdown button,
+html button[role="combobox"],
+html button[role="tab"],
+html button[role="menuitem"],
+html [role="menuitem"],
+html [role="tab"] {
+  background-color: transparent !important;
+  color: inherit !important;
+  border: 0 !important;
+}
+
+html button:hover:not(:disabled),
+html input[type="submit"]:hover,
+html input[type="button"]:hover,
+html input[type="reset"]:hover {
+  background-color: transparent !important;
+  color: #5147e6 !important;
+  text-decoration: underline;
+}
+
+/* Don't apply hover-blue to nav/menu buttons either */
+html nav button:hover,
+html nav button[class]:hover,
+html header button:hover,
+html header button[class]:hover,
+html [role="navigation"] button:hover,
+html [role="menu"] button:hover,
+html [role="menubar"] button:hover,
+html [role="menuitem"]:hover,
+html [role="tablist"] button:hover,
+html [role="tab"]:hover,
+html .menu button:hover,
+html .dropdown button:hover {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
+/* Icons inside action buttons inherit the blue. High-specificity to beat
+   .text-primary-foreground (which sets icons to white on solid-fill buttons). */
+html button:not(nav button):not(header button):not([role="tab"]):not([role="menuitem"]) svg,
+html button[class] svg,
+html input[type="submit"] svg {
+  color: #5147e6 !important;
+}
+
+/* Disabled */
+button:disabled,
+button[disabled],
+input[type="submit"]:disabled,
+input[type="button"]:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Bare close-style buttons (the × in modals) — no border, transparent */
+button[aria-label="Close" i],
+button[aria-label="close" i],
+.close-button {
+  border: 0 !important;
+  background-color: transparent !important;
+}
+
+/* ===================================================================== */
+/* 90s MINIMAL: dark black + navy blue only. No fancy effects.           */
+/* This block is intentionally last so it wins over everything above.    */
+/* ===================================================================== */
+
+/* Square corners site-wide */
+html *,
+html *::before,
+html *::after {
+  border-radius: 0 !important;
+}
+
+/* Kill all shadows */
+html *,
+html *::before,
+html *::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+/* Kill all gradients (Tailwind's bg-gradient-to-*, inline gradients) */
+html [class*="gradient"],
+html [class*="from-"],
+html [class*="via-"],
+html [class*="to-"] {
+  background-image: none !important;
+}
+
+/* Tailwind opacity-based color utilities (bg-primary/10, bg-blue-500/20,
+   bg-black/50, etc.) flatten to either white or transparent so we don't
+   end up with pastel tints or gray squares from translucent fills.
+   The /50 backdrop on modals is the one place we keep some darkening. */
+html [class*="/5"],
+html [class*="/10"],
+html [class*="/15"],
+html [class*="/20"],
+html [class*="/25"],
+html [class*="/30"],
+html [class*="/40"],
+html [class*="/60"],
+html [class*="/70"],
+html [class*="/80"],
+html [class*="/90"] {
+  background-color: transparent !important;
+}
+
+/* Italics off */
+html em,
+html i:not([class*="icon"]):not(svg),
+html [class*="italic"] {
+  font-style: normal !important;
+}
+
+/* Animations off */
+html *,
+html *::before,
+html *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* All colored backgrounds (any color, any shade) flatten to white. The
+   site is white surfaces only. Modal backdrops are restored below. */
+html [class*="bg-blue-"],
+html [class*="bg-indigo-"],
+html [class*="bg-purple-"],
+html [class*="bg-violet-"],
+html [class*="bg-fuchsia-"],
+html [class*="bg-pink-"],
+html [class*="bg-rose-"],
+html [class*="bg-red-"],
+html [class*="bg-orange-"],
+html [class*="bg-amber-"],
+html [class*="bg-yellow-"],
+html [class*="bg-lime-"],
+html [class*="bg-green-"],
+html [class*="bg-emerald-"],
+html [class*="bg-teal-"],
+html [class*="bg-cyan-"],
+html [class*="bg-sky-"],
+html [class*="bg-gray-"],
+html [class*="bg-slate-"],
+html [class*="bg-zinc-"],
+html [class*="bg-neutral-"],
+html [class*="bg-stone-"] {
+  background-color: #ffffff !important;
+}
+
+/* All colored text + icon classes → navy. Lucide icons use stroke=currentColor
+   so this also recolors all icons. */
+html [class*="text-blue-"],
+html [class*="text-indigo-"],
+html [class*="text-purple-"],
+html [class*="text-violet-"],
+html [class*="text-fuchsia-"],
+html [class*="text-pink-"],
+html [class*="text-rose-"],
+html [class*="text-red-"],
+html [class*="text-orange-"],
+html [class*="text-amber-"],
+html [class*="text-yellow-"],
+html [class*="text-lime-"],
+html [class*="text-green-"],
+html [class*="text-emerald-"],
+html [class*="text-teal-"],
+html [class*="text-cyan-"],
+html [class*="text-sky-"],
+html [class*="text-gray-"],
+html [class*="text-slate-"],
+html [class*="text-zinc-"],
+html [class*="text-neutral-"],
+html [class*="text-stone-"] {
+  color: #5147e6 !important;
+}
+
+/* Lighter color for icons site-wide (slate). Reads as a subtle decoration
+   rather than a heavy navy accent. Lucide icons are stroke-only with no
+   fill, so we force `fill: none` to keep their outline style. */
+html svg,
+html svg * {
+  color: #94a3b8 !important;
+  stroke: currentColor;
+  fill: none !important;
+  stroke-width: 1.75;
+}
+/* Icons that are intentionally filled (badges, dots, etc.) opt back in. */
+html svg.fill-current,
+html svg[data-fill="true"],
+html [data-fill] svg {
+  fill: currentColor !important;
+}
+
+/* Anchors / links: simple navy text. */
+html a {
+  color: #5147e6 !important;
+  text-decoration: none !important;
+}
+html a:hover {
+  text-decoration: underline !important;
+}
+
+/* Prominent "Add New" action button. Used by list views across every module
+   (shared EntityList) and reusable on any bespoke page. Solid navy fill with a
+   bold white label + "+" glyph. Carved out from the global navy-link color so
+   the white text survives `html a { color: #5147e6 !important }`. */
+html a.add-new-btn,
+html a.add-new-btn:visited {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background-color: #5147e6 !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.95rem;
+  line-height: 1.1;
+  text-decoration: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition: background-color 0.12s ease;
+}
+html a.add-new-btn:hover {
+  background-color: #001b4a !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+}
+html a.add-new-btn .add-new-plus {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* AI Auto-Plan accent button. A real <button>, so it'd otherwise be flattened
+   by the white-button normalization above — carve it out with a solid navy fill
+   and white label. Specificity-boosted with [class] to beat `html button[class]`. */
+html button.ai-plan-btn[class] {
+  background-color: #5147e6 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.95rem;
+  border: 0 !important;
+}
+html button.ai-plan-btn[class]:hover:not(:disabled) {
+  background-color: #001b4a !important;
+  color: #ffffff !important;
+  text-decoration: none;
+}
+html button.ai-plan-btn[class] svg { color: #ffffff !important; }
+
+/* Sidebar anchors override the global rule — inactive items show as
+   light slate on the navy panel; active uses inline style for navy-on-white. */
+html .app-sidebar a {
+  color: #cbd5e1 !important;
+  text-decoration: none !important;
+}
+html .app-sidebar a[aria-current="page"] {
+  color: #ffffff !important;
+}
+html .app-sidebar a:hover {
+  color: #ffffff !important;
+  text-decoration: none !important;
+}
+html .app-sidebar a[aria-current="page"]:hover {
+  color: #ffffff !important;
+}
+
+/* Borders are gone for most chrome — section separation comes from
+   background colors instead. Tables and form inputs keep borders. */
+html [class*="border"]:not(input):not(textarea):not(select):not(button):not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(.app-sidebar):not(.keep-border) {
+  border: 0 !important;
+}
+
+/* Cards / panels — use a soft surface tint instead of a border. */
+html .border,
+html [class*="border-2"]:not(table):not(thead):not(tbody):not(tr):not(td):not(th),
+html [class*="border-t"]:not(table):not(thead):not(tbody):not(tr):not(td):not(th),
+html [class*="border-b"]:not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(.tabs-strip),
+html [class*="border-l"]:not(table):not(thead):not(tbody):not(tr):not(td):not(th),
+html [class*="border-r"]:not(table):not(thead):not(tbody):not(tr):not(td):not(th) {
+  border: 0 !important;
+}
+
+/* Spreadsheet-style tables: every cell has visible grid borders, header
+   row gets a slightly darker tone, hover row gets a soft tint. */
+html table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  background: #ffffff;
+}
+html table th,
+html table td {
+  border: 1px solid #d1d5db !important;
+  padding: 0.5rem 0.75rem !important;
+  text-align: left;
+  vertical-align: top;
+}
+html table thead th {
+  background-color: #f3f6fb !important;
+  font-weight: 600;
+  white-space: nowrap;
+}
+html table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* Restore the modal backdrop dark layer */
+html [class*="bg-black/50"],
+html [class*="bg-black/40"],
+html [class*="bg-black/60"],
+html [class*="bg-black/30"] {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* House style for headings: plain weight + black, consistent sizing so the
+   module-level H1 stays the visual anchor and nothing inside the page
+   outshouts it. A single escape hatch — the `.text-hero` class — opts an
+   element out of BOTH the forced black color and the size cap, for intentional
+   display text (hero banners, marketing headings). This replaces the old
+   workaround of rewriting such headings as styled <div>s to dodge the locks. */
+html h1:not(.text-hero), html h2:not(.text-hero), html h3:not(.text-hero),
+html h4:not(.text-hero), html h5:not(.text-hero), html h6:not(.text-hero) {
+  color: var(--color-heading) !important;
+}
+html h1, html h2, html h3, html h4, html h5, html h6 {
+  font-family: var(--font-display) !important;
+  font-style: normal !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.01em;
+}
+html h1:not(.text-hero) { font-size: 1.5rem !important; font-weight: 700 !important; }     /* 24px — module name */
+html h2:not(.text-hero) { font-size: 1.25rem !important; font-weight: 700 !important; }    /* 20px — section */
+html h3:not(.text-hero) { font-size: 1.075rem !important; font-weight: 600 !important; }   /* 17px — subsection */
+html h4:not(.text-hero), html h5:not(.text-hero), html h6:not(.text-hero) { font-size: 0.95rem !important; font-weight: 600 !important; }
+
+/* Cap big Tailwind text utilities used inside pages — but with a more generous,
+   prominent scale (and the `.text-hero` escape hatch for true display text). */
+html [class*="text-3xl"]:not(.text-hero) { font-size: 1.6rem !important; }
+html [class*="text-4xl"]:not(.text-hero) { font-size: 1.9rem !important; }
+html [class*="text-5xl"]:not(.text-hero) { font-size: 2.2rem !important; }
+
+/* Display / hero text utility. Opts out of the heading + size caps above and
+   provides a large, bold display style on its own — add `text-hero` to any page
+   title or banner heading to get a prominent size without inline overrides.
+   Colour is intentionally left to the caller (white on dark, indigo on light). */
+html .text-hero {
+  font-size: 1.9rem !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.01em;
+}
+
+/* Flatten named theme-utility backgrounds that the catch-all bg-blue-* etc.
+   rules didn't cover. After this, no element should have a coloured fill. */
+html .bg-primary,
+html .bg-secondary,
+html .bg-accent,
+html [class*="bg-primary"],
+html [class*="bg-secondary"],
+html [class*="bg-accent"] {
+  background-color: #ffffff !important;
+}
+
+/* White text becomes invisible on a white background. Force any text that
+   was meant to sit on a colored fill to navy now that the fills are gone.
+   The AppShell sidebar and the brand block keep their intentional white
+   text via higher-specificity overrides below. */
+html .text-white,
+html [class*="text-white"],
+html .text-primary-foreground,
+html .text-secondary-foreground,
+html .text-accent-foreground,
+html [class*="-foreground"] {
+  color: #5147e6 !important;
+}
+/* Keep white text white on intentionally dark surfaces. */
+html .app-sidebar,
+html [data-on-dark],
+html [data-on-dark] * {
+  color: #ffffff !important;
+}
+/* `data-on-light` re-asserts dark text inside a dark scope (e.g. the
+   user-menu dropdown that floats out from the dark header). */
+html [data-on-light],
+html [data-on-light] * {
+  color: #000000 !important;
+}
+html [data-on-light] a {
+  color: #5147e6 !important;
+}
+/* Sidebar links: white by default; active row flips to navy on its
+   white panel. The aria-current selector wins on specificity. */
+html .app-sidebar a {
+  color: #cbd5e1 !important;
+}
+html .app-sidebar a[aria-current="page"],
+html .app-sidebar a[aria-current="page"] * {
+  color: #ffffff !important;
+}
+html .app-sidebar a:hover:not([aria-current="page"]) {
+  color: #ffffff !important;
+}
+
+/* Form input borders: stronger navy by default, no shaded gray. */
+html input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([data-bare]),
+html textarea:not([data-bare]),
+html select:not([data-bare]) {
+  border: 1px solid #5147e6 !important;
+}
+/* Inputs marked data-bare opt out of the global border (e.g. the search
+   bar inside the dark top header). */
+html input[data-bare],
+html textarea[data-bare],
+html select[data-bare] {
+  border: 0 !important;
+  background-color: transparent !important;
+}
+html input[data-bare]::placeholder {
+  color: #cbd5e1 !important;
+}
+html input:focus:not([type="checkbox"]):not([type="radio"]),
+html textarea:focus,
+html select:focus {
+  border-color: #5147e6 !important;
+  outline: 2px solid rgba(0, 40, 104, 0.18) !important;
+}
+
+/* Specificity-boosted: any element with a class — the earlier `html *`
+   rule has only 0,0,0,1 specificity, which loses to Tailwind's
+   `.rounded-b-lg` (0,0,1,0). This 0,0,1,1 selector wins. */
+html [class] {
+  border-radius: 0 !important;
+}
+
+/* Strip the underline highlight Tailwind paints on nav items
+   (border-b-2 with a colored borderBottomColor inline style). */
+html nav a,
+html nav button,
+html header a,
+html header button,
+html [role="navigation"] a,
+html [role="navigation"] button {
+  border-bottom: 0 !important;
+  border-bottom-color: transparent !important;
+  border-bottom-width: 0 !important;
+}
+
+/* Same for the dropdown panel that hangs below a nav button — no rounded
+   corners, no shadow, no extra border. Just a plain bordered rectangle. */
+html nav [class*="absolute"],
+html header [class*="absolute"] {
+  box-shadow: none !important;
+}
+
+/* Hide leading decorative icons next to text-labelled nav links in
+   per-module navs. The AppShell sidebar AND the AppShell top bar are
+   exempt — their icons are the only label. */
+html nav:not(.app-sidebar) a > svg:first-child,
+html nav:not(.app-sidebar) button > svg:first-child,
+html [role="menu"] a > svg:first-child,
+html [role="menuitem"] svg:first-child {
+  display: none !important;
+}
+
+/* Sidebar + top bar: icons inherit (so they're white on the dark chrome). */
+html .app-sidebar svg,
+html header[data-on-dark] svg,
+html [data-on-dark] svg {
+  color: inherit !important;
+  fill: none !important;
+}
+
+/* ============================================================
+   Section separation via background colors (no borders).
+   Palette: navy (#5147e6), green (#01411C), white, near-black.
+   Surface tints: very-light blue (#f3f6fb), very-light green
+   (#f0fdf4), pure white. Modal backdrops keep their dim.
+   ============================================================ */
+
+/* Soft surface — used for "cards" in the new design language.
+   Anything with the .surface class or rendered as a panel inside
+   the main content area. */
+html .surface,
+html [class*="rounded-lg"][class*="p-"],
+html [class*="border"][class*="p-6"]:not(input):not(textarea):not(select):not(button):not(table) {
+  background-color: #ffffff !important;
+}
+
+/* Module content background — the design canvas tint behind white cards. */
+html main {
+  background-color: #f5f6fb !important;
+  padding: 1.25rem 1.5rem !important;
+}
+
+/* Strip max-width / centering / wide padding from inner page wrappers so
+   content fills the main area edge-to-edge (the user wanted no big side
+   margins). The .keep-centered class is an opt-out for callers that
+   really want centered narrow content (modals, etc.). */
+html main [class*="max-w-7xl"],
+html main [class*="max-w-6xl"],
+html main [class*="max-w-5xl"],
+html main [class*="max-w-4xl"],
+html main [class*="max-w-3xl"] {
+  max-width: none !important;
+}
+html main [class*="mx-auto"]:not(.keep-centered) {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+/* Reduce big horizontal Tailwind padding on inner wrappers (we already
+   added 1rem at main). */
+html main [class*="px-6"]:not(.keep-padding),
+html main [class*="px-8"]:not(.keep-padding),
+html main [class*="lg:px-8"]:not(.keep-padding),
+html main [class*="sm:px-6"]:not(.keep-padding) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* "Banner" stat cards and feature blocks: very light blue surface. */
+html [class*="grid"] > [class*="border"]:not(table):not(input):not(textarea):not(select) {
+  background-color: #ffffff !important;
+}
+
+/* Hover/highlight rows in tables use a tinted bg, never a colored border. */
+html table tr:hover {
+  background-color: #f3f6fb;
+}
+
+/* ---------- Switch / toggle: must remain visually prominent ---------- */
+/* The flatten-everything rules above would make on/off toggles invisible
+   (both states render as white pill on white background). Carve out
+   [role="switch"] and the thumb inside it. */
+html [role="switch"] {
+  background-color: #cbd5e1 !important; /* slate-300, the OFF state */
+  border: 1px solid #475569 !important;  /* slate-600 outline so it pops */
+  border-radius: 9999px !important;       /* keep pill shape */
+}
+html [role="switch"][aria-checked="true"] {
+  background-color: #5147e6 !important;  /* navy ON */
+  border-color: #5147e6 !important;
+}
+html [role="switch"] > * {
+  background-color: #ffffff !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ============================================================
+   Modal chrome normalization — catches every dialog in the app,
+   not just the ones using the canonical Modal primitive. Targets
+   the standard React modal pattern: a fixed inset-0 overlay with
+   a centered child panel.
+   ============================================================ */
+
+/* Backdrop: consistent navy-tinted dim. */
+html div.fixed.inset-0:has(> div.bg-white),
+html div.fixed.inset-0:has(> div[class*="modal"]) {
+  background-color: rgba(15, 23, 42, 0.55) !important;
+}
+
+/* Modal panel: square corners + light shadow, no oversized drama. */
+html div.fixed.inset-0 > div.bg-white,
+html div.fixed.inset-0 div[class*="rounded-lg"][class*="bg-white"] {
+  border-radius: 0 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Inputs inside modals: navy 1px border, no blue focus ring. */
+html div.fixed.inset-0 input:not([type="checkbox"]):not([type="radio"]):not([data-bare]),
+html div.fixed.inset-0 textarea:not([data-bare]),
+html div.fixed.inset-0 select:not([data-bare]) {
+  border: 1px solid #d1d5db !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+html div.fixed.inset-0 input:not([data-bare]):focus,
+html div.fixed.inset-0 textarea:not([data-bare]):focus,
+html div.fixed.inset-0 select:not([data-bare]):focus {
+  border-color: #5147e6 !important;
+  box-shadow: 0 0 0 2px rgba(0, 40, 104, 0.15) !important;
+}
+
+/* Buttons inside modals: kill blue/green pill defaults; reuse the system
+   primary (navy fill) and secondary (gray border) idioms. The class-list
+   matchers here cover the most common Tailwind combos used by older forms. */
+html div.fixed.inset-0 button[class*="bg-blue-"],
+html div.fixed.inset-0 button[class*="bg-indigo-"] {
+  background-color: #5147e6 !important;
+  color: #ffffff !important;
+  border-radius: 0 !important;
+  border: 1px solid #5147e6 !important;
+}
+html div.fixed.inset-0 button[class*="bg-green-"] {
+  background-color: #012E14 !important;
+  color: #ffffff !important;
+  border-radius: 0 !important;
+  border: 1px solid #012E14 !important;
+}
+html div.fixed.inset-0 button[class*="bg-red-"] {
+  background-color: #b91c1c !important;
+  color: #ffffff !important;
+  border-radius: 0 !important;
+  border: 1px solid #b91c1c !important;
+}
+html div.fixed.inset-0 button[class*="border-gray-"]:not([class*="bg-"]),
+html div.fixed.inset-0 button[class*="bg-gray-100"],
+html div.fixed.inset-0 button[class*="bg-gray-200"] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 0 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Section labels inside forms: small caps, gray. */
+html div.fixed.inset-0 label,
+html div.fixed.inset-0 .form-label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Drop excessive padding the legacy forms apply on container divs. */
+html div.fixed.inset-0 .max-w-2xl,
+html div.fixed.inset-0 .max-w-3xl,
+html div.fixed.inset-0 .max-w-4xl {
+  border-radius: 0 !important;
+}
+
+/* Helper / hint blocks (Tailwind blue-50/border-blue-200 etc.) → neutral
+   gray so they don't compete with primary actions. */
+html div.fixed.inset-0 [class*="bg-blue-50"],
+html div.fixed.inset-0 [class*="bg-indigo-50"] {
+  background-color: #f9fafb !important;
+  border-color: #e5e7eb !important;
+  color: #0f172a !important;
+}
+html div.fixed.inset-0 [class*="bg-yellow-50"] {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+}
+html div.fixed.inset-0 [class*="bg-red-50"] {
+  background-color: #fef2f2 !important;
+  border-color: #fecaca !important;
+}
+
+/* Header search box: hide the native search clear (×) box, and give the
+   magnifier a hover state. The icon is a div (buttons get flattened to navy
+   by global rules), so it's styled here rather than with Tailwind hover. */
+.app-search input[type="search"]::-webkit-search-cancel-button,
+.app-search input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.app-search-icon {
+  color: #6b7280;
+  transition: color 0.15s ease;
+}
+.app-search-icon:hover {
+  color: #5147e6;
+}

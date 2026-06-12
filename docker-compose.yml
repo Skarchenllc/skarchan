@@ -1,0 +1,118 @@
+services:
+  # Nginx Reverse Proxy (Unified Entry Point)
+  nginx:
+    image: nginx:alpine
+    container_name: bmp-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - core-frontend
+      - core-backend
+    networks:
+      - bmp-network
+    restart: unless-stopped
+
+  # Databases
+  postgres:
+    image: postgres:16-alpine
+    container_name: bmp-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: business_management
+    ports:
+      - "5632:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/databases/init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - bmp-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: bmp-redis
+    ports:
+      - "6579:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - bmp-network
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: bmp-chromadb
+    ports:
+      - "8200:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    networks:
+      - bmp-network
+
+  # Core Module (Shared Services)
+  core-frontend:
+    build:
+      context: ./modules/core/frontend
+      dockerfile: Dockerfile.dev
+    container_name: bmp-core-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=
+      - NEXT_PUBLIC_MODULE=core
+      - NODE_OPTIONS=--max-old-space-size=2048
+    ports:
+      - "3100:3000"
+    volumes:
+      - ./modules/core/frontend:/app
+      - ./shared:/app/src/_shared:ro
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - bmp-network
+
+  core-backend:
+    build:
+      context: ./modules/core/backend
+      dockerfile: Dockerfile
+    container_name: bmp-core-backend
+    ports:
+      - "8012:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/business_management
+      - SECRET_KEY=your-secret-key-change-this-in-production-minimum-32-characters-long
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+      - REFRESH_TOKEN_EXPIRE_DAYS=30
+      - DEBUG=True
+      - REDIS_URL=redis://redis:6379
+      - CHROMA_URL=http://chromadb:8000
+      # Anthropic API key for AI features (e.g. the PM auto-planner). Set a real
+      # value in .env; the backend reads it at request time.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # OpenAI key — used ONLY for embeddings (semantic Ask Your Data via ChromaDB).
+      # The LLM stays Claude. Optional: without it, retrieval falls back to keyword.
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Master key for AES-GCM field-level encryption. 32 raw bytes,
+      # base64-encoded. Override in production via a secret manager.
+      - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:-Vm91blJqYjBhVHhxK0RVRWp1VUxYTHpHcExuTGFLczg=}
+    depends_on:
+      - postgres
+      - redis
+      - chromadb
+    volumes:
+      - ./modules/core/backend:/app
+      - uploads_data:/app/uploads
+    networks:
+      - bmp-network
+
+networks:
+  bmp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  chromadb_data:
+  uploads_data:

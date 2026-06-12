@@ -1,0 +1,1152 @@
+from fastapi import APIRouter, HTTPException, Depends
+from typing import List, Optional
+from pydantic import BaseModel
+from datetime import datetime, timedelta, date
+import uuid
+import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.core.database import get_db
+from app.models.recruitment import JobRequisition, Applicant, JobRequisitionStatus, ApplicantStatus
+
+router = APIRouter()
+
+# Process Phase Model
+class ProcessPhase(BaseModel):
+    phase_number: int
+    phase_name: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    location: Optional[str] = None
+    conducting_members: Optional[str] = None
+    required_documents: Optional[str] = None
+    notes: Optional[str] = None
+
+# Job Requisition Model
+class JobRequisitionCreate(BaseModel):
+    job_title: str
+    department: str
+    location: str
+    employment_type: str
+    positions: int
+    salary_range_min: int
+    salary_range_max: int
+    closing_date: Optional[str] = None
+    job_summary: Optional[str] = None
+    key_responsibilities: Optional[str] = None
+    required_education: Optional[str] = None
+    preferred_education: Optional[str] = None
+    min_experience_years: Optional[int] = None
+    max_experience_years: Optional[int] = None
+    age_min: Optional[int] = None
+    age_max: Optional[int] = None
+    required_skills: Optional[str] = None
+    preferred_skills: Optional[str] = None
+    certifications: Optional[str] = None
+    languages: Optional[str] = None
+    work_schedule: Optional[str] = None
+    travel_required: Optional[str] = None
+    physical_requirements: Optional[str] = None
+    benefits: Optional[str] = None
+    interview_stages: Optional[str] = None
+    onboarding_duration: Optional[int] = None
+    training_required: Optional[str] = None
+    process_phases: Optional[List[ProcessPhase]] = None
+
+class JobRequisitionResponse(JobRequisitionCreate):
+    id: str
+    status: str
+    posted_date: str
+    applicants_count: int
+    interviews_scheduled: int
+    offers_made: int
+    key_responsibilities_list: Optional[List[str]] = None
+    required_skills_list: Optional[List[str]] = None
+    preferred_skills_list: Optional[List[str]] = None
+    certifications_list: Optional[List[str]] = None
+    languages_list: Optional[List[str]] = None
+    benefits_list: Optional[List[str]] = None
+    interview_stages_list: Optional[List[str]] = None
+    training_required_list: Optional[List[str]] = None
+
+@router.post("/job-requisitions", response_model=JobRequisitionResponse)
+async def create_job_requisition(job: JobRequisitionCreate, db: AsyncSession = Depends(get_db)):
+    """Create a new job requisition"""
+
+    # Convert comma-separated strings to lists
+    def parse_list(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split(',') if item.strip()]
+
+    # Convert newline-separated to lists
+    def parse_newlines(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split('\n') if item.strip()]
+
+    # Convert process_phases to dict format for JSONB
+    process_phases_json = None
+    if job.process_phases:
+        process_phases_json = [phase.dict() for phase in job.process_phases]
+
+    # Convert closing_date string to date object
+    closing_date_obj = None
+    if job.closing_date:
+        try:
+            closing_date_obj = datetime.strptime(job.closing_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid closing_date format. Use YYYY-MM-DD")
+
+    # Create JobRequisition database model
+    db_job = JobRequisition(
+        job_title=job.job_title,
+        department=job.department,
+        location=job.location,
+        employment_type=job.employment_type,
+        positions=job.positions,
+        salary_range_min=job.salary_range_min,
+        salary_range_max=job.salary_range_max,
+        closing_date=closing_date_obj,
+        job_summary=job.job_summary,
+        key_responsibilities=job.key_responsibilities,
+        required_education=job.required_education,
+        preferred_education=job.preferred_education,
+        min_experience_years=job.min_experience_years,
+        max_experience_years=job.max_experience_years,
+        age_min=job.age_min,
+        age_max=job.age_max,
+        required_skills=job.required_skills,
+        preferred_skills=job.preferred_skills,
+        certifications=job.certifications,
+        languages=job.languages,
+        work_schedule=job.work_schedule,
+        travel_required=job.travel_required,
+        physical_requirements=job.physical_requirements,
+        benefits=job.benefits,
+        interview_stages=job.interview_stages,
+        onboarding_duration=job.onboarding_duration,
+        training_required=job.training_required,
+        process_phases=process_phases_json,
+        status=JobRequisitionStatus.OPEN,
+        posted_date=datetime.now().date(),
+        applicants_count=0,
+        interviews_scheduled=0,
+        offers_made=0
+    )
+
+    db.add(db_job)
+    await db.flush()
+    await db.refresh(db_job)
+
+    # Convert to response format
+    return JobRequisitionResponse(
+        id=str(db_job.id),
+        status=db_job.status.value,
+        posted_date=db_job.posted_date.strftime("%Y-%m-%d"),
+        applicants_count=db_job.applicants_count,
+        interviews_scheduled=db_job.interviews_scheduled,
+        offers_made=db_job.offers_made,
+        job_title=db_job.job_title,
+        department=db_job.department,
+        location=db_job.location,
+        employment_type=db_job.employment_type,
+        positions=db_job.positions,
+        salary_range_min=db_job.salary_range_min,
+        salary_range_max=db_job.salary_range_max,
+        closing_date=db_job.closing_date.strftime("%Y-%m-%d") if db_job.closing_date else None,
+        job_summary=db_job.job_summary,
+        key_responsibilities=db_job.key_responsibilities,
+        required_education=db_job.required_education,
+        preferred_education=db_job.preferred_education,
+        min_experience_years=db_job.min_experience_years,
+        max_experience_years=db_job.max_experience_years,
+        age_min=db_job.age_min,
+        age_max=db_job.age_max,
+        required_skills=db_job.required_skills,
+        preferred_skills=db_job.preferred_skills,
+        certifications=db_job.certifications,
+        languages=db_job.languages,
+        work_schedule=db_job.work_schedule,
+        travel_required=db_job.travel_required,
+        physical_requirements=db_job.physical_requirements,
+        benefits=db_job.benefits,
+        interview_stages=db_job.interview_stages,
+        onboarding_duration=db_job.onboarding_duration,
+        training_required=db_job.training_required,
+        process_phases=[ProcessPhase(**phase) for phase in db_job.process_phases] if db_job.process_phases else None,
+        key_responsibilities_list=parse_newlines(db_job.key_responsibilities),
+        required_skills_list=parse_list(db_job.required_skills),
+        preferred_skills_list=parse_list(db_job.preferred_skills),
+        certifications_list=parse_list(db_job.certifications),
+        languages_list=parse_list(db_job.languages),
+        benefits_list=parse_list(db_job.benefits),
+        interview_stages_list=parse_list(db_job.interview_stages),
+        training_required_list=parse_list(db_job.training_required)
+    )
+
+@router.get("/job-requisitions", response_model=List[JobRequisitionResponse])
+async def get_job_requisitions(
+    status: Optional[str] = None,
+    department: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all job requisitions with optional filters"""
+
+    # Convert comma-separated strings to lists
+    def parse_list(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split(',') if item.strip()]
+
+    # Convert newline-separated to lists
+    def parse_newlines(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split('\n') if item.strip()]
+
+    query = select(JobRequisition)
+
+    if status:
+        query = query.where(JobRequisition.status == status)
+
+    if department:
+        query = query.where(JobRequisition.department.ilike(department))
+
+    result = await db.execute(query)
+    jobs = result.scalars().all()
+
+    # Convert to response format
+    result = []
+    for db_job in jobs:
+        result.append(JobRequisitionResponse(
+            id=str(db_job.id),
+            status=db_job.status.value,
+            posted_date=db_job.posted_date.strftime("%Y-%m-%d"),
+            applicants_count=db_job.applicants_count,
+            interviews_scheduled=db_job.interviews_scheduled,
+            offers_made=db_job.offers_made,
+            job_title=db_job.job_title,
+            department=db_job.department,
+            location=db_job.location,
+            employment_type=db_job.employment_type,
+            positions=db_job.positions,
+            salary_range_min=db_job.salary_range_min,
+            salary_range_max=db_job.salary_range_max,
+            closing_date=db_job.closing_date.strftime("%Y-%m-%d") if db_job.closing_date else None,
+            job_summary=db_job.job_summary,
+            key_responsibilities=db_job.key_responsibilities,
+            required_education=db_job.required_education,
+            preferred_education=db_job.preferred_education,
+            min_experience_years=db_job.min_experience_years,
+            max_experience_years=db_job.max_experience_years,
+            age_min=db_job.age_min,
+            age_max=db_job.age_max,
+            required_skills=db_job.required_skills,
+            preferred_skills=db_job.preferred_skills,
+            certifications=db_job.certifications,
+            languages=db_job.languages,
+            work_schedule=db_job.work_schedule,
+            travel_required=db_job.travel_required,
+            physical_requirements=db_job.physical_requirements,
+            benefits=db_job.benefits,
+            interview_stages=db_job.interview_stages,
+            onboarding_duration=db_job.onboarding_duration,
+            training_required=db_job.training_required,
+            process_phases=[ProcessPhase(**phase) for phase in db_job.process_phases] if db_job.process_phases else None,
+            key_responsibilities_list=parse_newlines(db_job.key_responsibilities),
+            required_skills_list=parse_list(db_job.required_skills),
+            preferred_skills_list=parse_list(db_job.preferred_skills),
+            certifications_list=parse_list(db_job.certifications),
+            languages_list=parse_list(db_job.languages),
+            benefits_list=parse_list(db_job.benefits),
+            interview_stages_list=parse_list(db_job.interview_stages),
+            training_required_list=parse_list(db_job.training_required)
+        ))
+
+    return result
+
+@router.get("/job-requisitions/{job_id}", response_model=JobRequisitionResponse)
+async def get_job_requisition(job_id: str, db: Session = Depends(get_db)):
+    """Get a specific job requisition by ID"""
+
+    # Convert comma-separated strings to lists
+    def parse_list(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split(',') if item.strip()]
+
+    # Convert newline-separated to lists
+    def parse_newlines(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split('\n') if item.strip()]
+
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    db_job = db.query(JobRequisition).filter(JobRequisition.id == job_uuid).first()
+
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job requisition not found")
+
+    return JobRequisitionResponse(
+        id=str(db_job.id),
+        status=db_job.status.value,
+        posted_date=db_job.posted_date.strftime("%Y-%m-%d"),
+        applicants_count=db_job.applicants_count,
+        interviews_scheduled=db_job.interviews_scheduled,
+        offers_made=db_job.offers_made,
+        job_title=db_job.job_title,
+        department=db_job.department,
+        location=db_job.location,
+        employment_type=db_job.employment_type,
+        positions=db_job.positions,
+        salary_range_min=db_job.salary_range_min,
+        salary_range_max=db_job.salary_range_max,
+        closing_date=db_job.closing_date.strftime("%Y-%m-%d") if db_job.closing_date else None,
+        job_summary=db_job.job_summary,
+        key_responsibilities=db_job.key_responsibilities,
+        required_education=db_job.required_education,
+        preferred_education=db_job.preferred_education,
+        min_experience_years=db_job.min_experience_years,
+        max_experience_years=db_job.max_experience_years,
+        age_min=db_job.age_min,
+        age_max=db_job.age_max,
+        required_skills=db_job.required_skills,
+        preferred_skills=db_job.preferred_skills,
+        certifications=db_job.certifications,
+        languages=db_job.languages,
+        work_schedule=db_job.work_schedule,
+        travel_required=db_job.travel_required,
+        physical_requirements=db_job.physical_requirements,
+        benefits=db_job.benefits,
+        interview_stages=db_job.interview_stages,
+        onboarding_duration=db_job.onboarding_duration,
+        training_required=db_job.training_required,
+        process_phases=[ProcessPhase(**phase) for phase in db_job.process_phases] if db_job.process_phases else None,
+        key_responsibilities_list=parse_newlines(db_job.key_responsibilities),
+        required_skills_list=parse_list(db_job.required_skills),
+        preferred_skills_list=parse_list(db_job.preferred_skills),
+        certifications_list=parse_list(db_job.certifications),
+        languages_list=parse_list(db_job.languages),
+        benefits_list=parse_list(db_job.benefits),
+        interview_stages_list=parse_list(db_job.interview_stages),
+        training_required_list=parse_list(db_job.training_required)
+    )
+
+@router.put("/job-requisitions/{job_id}", response_model=JobRequisitionResponse)
+async def update_job_requisition(job_id: str, job: JobRequisitionCreate, db: Session = Depends(get_db)):
+    """Update an existing job requisition"""
+
+    # Convert comma-separated strings to lists
+    def parse_list(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split(',') if item.strip()]
+
+    # Convert newline-separated to lists
+    def parse_newlines(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split('\n') if item.strip()]
+
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    db_job = db.query(JobRequisition).filter(JobRequisition.id == job_uuid).first()
+
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job requisition not found")
+
+    # Convert process_phases to dict format for JSONB
+    process_phases_json = None
+    if job.process_phases:
+        process_phases_json = [phase.dict() for phase in job.process_phases]
+
+    # Convert closing_date string to date object
+    closing_date_obj = None
+    if job.closing_date:
+        try:
+            closing_date_obj = datetime.strptime(job.closing_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid closing_date format. Use YYYY-MM-DD")
+
+    # Update fields
+    db_job.job_title = job.job_title
+    db_job.department = job.department
+    db_job.location = job.location
+    db_job.employment_type = job.employment_type
+    db_job.positions = job.positions
+    db_job.salary_range_min = job.salary_range_min
+    db_job.salary_range_max = job.salary_range_max
+    db_job.closing_date = closing_date_obj
+    db_job.job_summary = job.job_summary
+    db_job.key_responsibilities = job.key_responsibilities
+    db_job.required_education = job.required_education
+    db_job.preferred_education = job.preferred_education
+    db_job.min_experience_years = job.min_experience_years
+    db_job.max_experience_years = job.max_experience_years
+    db_job.age_min = job.age_min
+    db_job.age_max = job.age_max
+    db_job.required_skills = job.required_skills
+    db_job.preferred_skills = job.preferred_skills
+    db_job.certifications = job.certifications
+    db_job.languages = job.languages
+    db_job.work_schedule = job.work_schedule
+    db_job.travel_required = job.travel_required
+    db_job.physical_requirements = job.physical_requirements
+    db_job.benefits = job.benefits
+    db_job.interview_stages = job.interview_stages
+    db_job.onboarding_duration = job.onboarding_duration
+    db_job.training_required = job.training_required
+    db_job.process_phases = process_phases_json
+
+    db.commit()
+    db.refresh(db_job)
+
+    return JobRequisitionResponse(
+        id=str(db_job.id),
+        status=db_job.status.value,
+        posted_date=db_job.posted_date.strftime("%Y-%m-%d"),
+        applicants_count=db_job.applicants_count,
+        interviews_scheduled=db_job.interviews_scheduled,
+        offers_made=db_job.offers_made,
+        job_title=db_job.job_title,
+        department=db_job.department,
+        location=db_job.location,
+        employment_type=db_job.employment_type,
+        positions=db_job.positions,
+        salary_range_min=db_job.salary_range_min,
+        salary_range_max=db_job.salary_range_max,
+        closing_date=db_job.closing_date.strftime("%Y-%m-%d") if db_job.closing_date else None,
+        job_summary=db_job.job_summary,
+        key_responsibilities=db_job.key_responsibilities,
+        required_education=db_job.required_education,
+        preferred_education=db_job.preferred_education,
+        min_experience_years=db_job.min_experience_years,
+        max_experience_years=db_job.max_experience_years,
+        age_min=db_job.age_min,
+        age_max=db_job.age_max,
+        required_skills=db_job.required_skills,
+        preferred_skills=db_job.preferred_skills,
+        certifications=db_job.certifications,
+        languages=db_job.languages,
+        work_schedule=db_job.work_schedule,
+        travel_required=db_job.travel_required,
+        physical_requirements=db_job.physical_requirements,
+        benefits=db_job.benefits,
+        interview_stages=db_job.interview_stages,
+        onboarding_duration=db_job.onboarding_duration,
+        training_required=db_job.training_required,
+        process_phases=[ProcessPhase(**phase) for phase in db_job.process_phases] if db_job.process_phases else None,
+        key_responsibilities_list=parse_newlines(db_job.key_responsibilities),
+        required_skills_list=parse_list(db_job.required_skills),
+        preferred_skills_list=parse_list(db_job.preferred_skills),
+        certifications_list=parse_list(db_job.certifications),
+        languages_list=parse_list(db_job.languages),
+        benefits_list=parse_list(db_job.benefits),
+        interview_stages_list=parse_list(db_job.interview_stages),
+        training_required_list=parse_list(db_job.training_required)
+    )
+
+@router.delete("/job-requisitions/{job_id}")
+async def delete_job_requisition(job_id: str, db: Session = Depends(get_db)):
+    """Delete a job requisition"""
+
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    db_job = db.query(JobRequisition).filter(JobRequisition.id == job_uuid).first()
+
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job requisition not found")
+
+    db.delete(db_job)
+    db.commit()
+
+    return {"message": "Job requisition deleted successfully"}
+
+@router.patch("/job-requisitions/{job_id}/status")
+async def update_job_status(job_id: str, status: str, db: Session = Depends(get_db)):
+    """Update job requisition status"""
+
+    valid_statuses = ["draft", "open", "on_hold", "filled", "cancelled"]
+
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    db_job = db.query(JobRequisition).filter(JobRequisition.id == job_uuid).first()
+
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job requisition not found")
+
+    # Convert comma-separated strings to lists
+    def parse_list(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split(',') if item.strip()]
+
+    # Convert newline-separated to lists
+    def parse_newlines(text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        return [item.strip() for item in text.split('\n') if item.strip()]
+
+    db_job.status = JobRequisitionStatus(status)
+    db.commit()
+    db.refresh(db_job)
+
+    return JobRequisitionResponse(
+        id=str(db_job.id),
+        status=db_job.status.value,
+        posted_date=db_job.posted_date.strftime("%Y-%m-%d"),
+        applicants_count=db_job.applicants_count,
+        interviews_scheduled=db_job.interviews_scheduled,
+        offers_made=db_job.offers_made,
+        job_title=db_job.job_title,
+        department=db_job.department,
+        location=db_job.location,
+        employment_type=db_job.employment_type,
+        positions=db_job.positions,
+        salary_range_min=db_job.salary_range_min,
+        salary_range_max=db_job.salary_range_max,
+        closing_date=db_job.closing_date.strftime("%Y-%m-%d") if db_job.closing_date else None,
+        job_summary=db_job.job_summary,
+        key_responsibilities=db_job.key_responsibilities,
+        required_education=db_job.required_education,
+        preferred_education=db_job.preferred_education,
+        min_experience_years=db_job.min_experience_years,
+        max_experience_years=db_job.max_experience_years,
+        age_min=db_job.age_min,
+        age_max=db_job.age_max,
+        required_skills=db_job.required_skills,
+        preferred_skills=db_job.preferred_skills,
+        certifications=db_job.certifications,
+        languages=db_job.languages,
+        work_schedule=db_job.work_schedule,
+        travel_required=db_job.travel_required,
+        physical_requirements=db_job.physical_requirements,
+        benefits=db_job.benefits,
+        interview_stages=db_job.interview_stages,
+        onboarding_duration=db_job.onboarding_duration,
+        training_required=db_job.training_required,
+        process_phases=[ProcessPhase(**phase) for phase in db_job.process_phases] if db_job.process_phases else None,
+        key_responsibilities_list=parse_newlines(db_job.key_responsibilities),
+        required_skills_list=parse_list(db_job.required_skills),
+        preferred_skills_list=parse_list(db_job.preferred_skills),
+        certifications_list=parse_list(db_job.certifications),
+        languages_list=parse_list(db_job.languages),
+        benefits_list=parse_list(db_job.benefits),
+        interview_stages_list=parse_list(db_job.interview_stages),
+        training_required_list=parse_list(db_job.training_required)
+    )
+
+
+# Applicant Models
+class ApplicantCreate(BaseModel):
+    name: str
+    email: str
+    phone: str
+    job_id: str
+    job_title: str
+    resume_url: Optional[str] = None
+    cv_file_name: Optional[str] = None
+    cover_letter: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    experience_years: int = 0
+    education: Optional[str] = None
+    skills: Optional[List[str]] = None
+    # Personal Information
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
+    nationality: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    country: Optional[str] = None
+    # Emergency Contact
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+
+
+class ApplicantResponse(ApplicantCreate):
+    id: str
+    application_date: str
+    status: str  # "new", "screening", "interview", "offer", "hired", "rejected"
+    current_stage: Optional[str] = None
+
+
+@router.post("/applicants", response_model=ApplicantResponse)
+async def create_applicant(applicant: ApplicantCreate, db: Session = Depends(get_db)):
+    """Create a new applicant"""
+
+    # Validate job_id exists
+    try:
+        job_uuid = uuid.UUID(applicant.job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    db_job = db.query(JobRequisition).filter(JobRequisition.id == job_uuid).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job requisition not found")
+
+    # Convert date_of_birth string to date object
+    date_of_birth_obj = None
+    if applicant.date_of_birth:
+        try:
+            date_of_birth_obj = datetime.strptime(applicant.date_of_birth, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_of_birth format. Use YYYY-MM-DD")
+
+    # Create Applicant database model
+    db_applicant = Applicant(
+        name=applicant.name,
+        email=applicant.email,
+        phone=applicant.phone,
+        job_id=job_uuid,
+        job_title=applicant.job_title,
+        resume_url=applicant.resume_url,
+        cv_file_name=applicant.cv_file_name,
+        cover_letter=applicant.cover_letter,
+        portfolio_url=applicant.portfolio_url,
+        linkedin_url=applicant.linkedin_url,
+        experience_years=applicant.experience_years,
+        education=applicant.education,
+        skills=applicant.skills,  # JSONB field accepts list directly
+        date_of_birth=date_of_birth_obj,
+        gender=applicant.gender,
+        nationality=applicant.nationality,
+        address=applicant.address,
+        city=applicant.city,
+        state=applicant.state,
+        zip_code=applicant.zip_code,
+        country=applicant.country,
+        emergency_contact_name=applicant.emergency_contact_name,
+        emergency_contact_phone=applicant.emergency_contact_phone,
+        emergency_contact_relationship=applicant.emergency_contact_relationship,
+        status=ApplicantStatus.NEW,
+        current_stage="Application Received",
+        application_date=datetime.now().date()
+    )
+
+    db.add(db_applicant)
+    db.commit()
+    db.refresh(db_applicant)
+
+    # Update job requisition applicants_count
+    db_job.applicants_count = db_job.applicants_count + 1
+    db.commit()
+
+    return ApplicantResponse(
+        id=str(db_applicant.id),
+        application_date=db_applicant.application_date.strftime("%Y-%m-%d"),
+        status=db_applicant.status.value,
+        current_stage=db_applicant.current_stage,
+        name=db_applicant.name,
+        email=db_applicant.email,
+        phone=db_applicant.phone,
+        job_id=str(db_applicant.job_id),
+        job_title=db_applicant.job_title,
+        resume_url=db_applicant.resume_url,
+        cv_file_name=db_applicant.cv_file_name,
+        cover_letter=db_applicant.cover_letter,
+        portfolio_url=db_applicant.portfolio_url,
+        linkedin_url=db_applicant.linkedin_url,
+        experience_years=db_applicant.experience_years,
+        education=db_applicant.education,
+        skills=db_applicant.skills,
+        date_of_birth=db_applicant.date_of_birth.strftime("%Y-%m-%d") if db_applicant.date_of_birth else None,
+        gender=db_applicant.gender,
+        nationality=db_applicant.nationality,
+        address=db_applicant.address,
+        city=db_applicant.city,
+        state=db_applicant.state,
+        zip_code=db_applicant.zip_code,
+        country=db_applicant.country,
+        emergency_contact_name=db_applicant.emergency_contact_name,
+        emergency_contact_phone=db_applicant.emergency_contact_phone,
+        emergency_contact_relationship=db_applicant.emergency_contact_relationship
+    )
+
+
+@router.get("/applicants", response_model=List[ApplicantResponse])
+async def get_applicants(
+    job_id: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get all applicants with optional filters"""
+
+    query = db.query(Applicant)
+
+    if job_id:
+        try:
+            job_uuid = uuid.UUID(job_id)
+            query = query.filter(Applicant.job_id == job_uuid)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    if status:
+        query = query.filter(Applicant.status == status)
+
+    applicants = query.all()
+
+    # Convert to response format
+    result = []
+    for db_applicant in applicants:
+        result.append(ApplicantResponse(
+            id=str(db_applicant.id),
+            application_date=db_applicant.application_date.strftime("%Y-%m-%d"),
+            status=db_applicant.status.value,
+            current_stage=db_applicant.current_stage,
+            name=db_applicant.name,
+            email=db_applicant.email,
+            phone=db_applicant.phone,
+            job_id=str(db_applicant.job_id),
+            job_title=db_applicant.job_title,
+            resume_url=db_applicant.resume_url,
+            cv_file_name=db_applicant.cv_file_name,
+            cover_letter=db_applicant.cover_letter,
+            portfolio_url=db_applicant.portfolio_url,
+            linkedin_url=db_applicant.linkedin_url,
+            experience_years=db_applicant.experience_years,
+            education=db_applicant.education,
+            skills=db_applicant.skills,
+            date_of_birth=db_applicant.date_of_birth.strftime("%Y-%m-%d") if db_applicant.date_of_birth else None,
+            gender=db_applicant.gender,
+            nationality=db_applicant.nationality,
+            address=db_applicant.address,
+            city=db_applicant.city,
+            state=db_applicant.state,
+            zip_code=db_applicant.zip_code,
+            country=db_applicant.country,
+            emergency_contact_name=db_applicant.emergency_contact_name,
+            emergency_contact_phone=db_applicant.emergency_contact_phone,
+            emergency_contact_relationship=db_applicant.emergency_contact_relationship
+        ))
+
+    return result
+
+
+@router.get("/applicants/{applicant_id}", response_model=ApplicantResponse)
+async def get_applicant(applicant_id: str, db: Session = Depends(get_db)):
+    """Get a specific applicant by ID"""
+
+    try:
+        applicant_uuid = uuid.UUID(applicant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid applicant ID format")
+
+    db_applicant = db.query(Applicant).filter(Applicant.id == applicant_uuid).first()
+
+    if not db_applicant:
+        raise HTTPException(status_code=404, detail="Applicant not found")
+
+    return ApplicantResponse(
+        id=str(db_applicant.id),
+        application_date=db_applicant.application_date.strftime("%Y-%m-%d"),
+        status=db_applicant.status.value,
+        current_stage=db_applicant.current_stage,
+        name=db_applicant.name,
+        email=db_applicant.email,
+        phone=db_applicant.phone,
+        job_id=str(db_applicant.job_id),
+        job_title=db_applicant.job_title,
+        resume_url=db_applicant.resume_url,
+        cv_file_name=db_applicant.cv_file_name,
+        cover_letter=db_applicant.cover_letter,
+        portfolio_url=db_applicant.portfolio_url,
+        linkedin_url=db_applicant.linkedin_url,
+        experience_years=db_applicant.experience_years,
+        education=db_applicant.education,
+        skills=db_applicant.skills,
+        date_of_birth=db_applicant.date_of_birth.strftime("%Y-%m-%d") if db_applicant.date_of_birth else None,
+        gender=db_applicant.gender,
+        nationality=db_applicant.nationality,
+        address=db_applicant.address,
+        city=db_applicant.city,
+        state=db_applicant.state,
+        zip_code=db_applicant.zip_code,
+        country=db_applicant.country,
+        emergency_contact_name=db_applicant.emergency_contact_name,
+        emergency_contact_phone=db_applicant.emergency_contact_phone,
+        emergency_contact_relationship=db_applicant.emergency_contact_relationship
+    )
+
+
+@router.put("/applicants/{applicant_id}", response_model=ApplicantResponse)
+async def update_applicant(applicant_id: str, applicant: ApplicantCreate, db: Session = Depends(get_db)):
+    """Update an existing applicant"""
+
+    try:
+        applicant_uuid = uuid.UUID(applicant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid applicant ID format")
+
+    db_applicant = db.query(Applicant).filter(Applicant.id == applicant_uuid).first()
+
+    if not db_applicant:
+        raise HTTPException(status_code=404, detail="Applicant not found")
+
+    # Validate job_id exists
+    try:
+        job_uuid = uuid.UUID(applicant.job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    db_job = db.query(JobRequisition).filter(JobRequisition.id == job_uuid).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job requisition not found")
+
+    # Convert date_of_birth string to date object
+    date_of_birth_obj = None
+    if applicant.date_of_birth:
+        try:
+            date_of_birth_obj = datetime.strptime(applicant.date_of_birth, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_of_birth format. Use YYYY-MM-DD")
+
+    # Update fields
+    db_applicant.name = applicant.name
+    db_applicant.email = applicant.email
+    db_applicant.phone = applicant.phone
+    db_applicant.job_id = job_uuid
+    db_applicant.job_title = applicant.job_title
+    db_applicant.resume_url = applicant.resume_url
+    db_applicant.cv_file_name = applicant.cv_file_name
+    db_applicant.cover_letter = applicant.cover_letter
+    db_applicant.portfolio_url = applicant.portfolio_url
+    db_applicant.linkedin_url = applicant.linkedin_url
+    db_applicant.experience_years = applicant.experience_years
+    db_applicant.education = applicant.education
+    db_applicant.skills = applicant.skills
+    db_applicant.date_of_birth = date_of_birth_obj
+    db_applicant.gender = applicant.gender
+    db_applicant.nationality = applicant.nationality
+    db_applicant.address = applicant.address
+    db_applicant.city = applicant.city
+    db_applicant.state = applicant.state
+    db_applicant.zip_code = applicant.zip_code
+    db_applicant.country = applicant.country
+    db_applicant.emergency_contact_name = applicant.emergency_contact_name
+    db_applicant.emergency_contact_phone = applicant.emergency_contact_phone
+    db_applicant.emergency_contact_relationship = applicant.emergency_contact_relationship
+
+    db.commit()
+    db.refresh(db_applicant)
+
+    return ApplicantResponse(
+        id=str(db_applicant.id),
+        application_date=db_applicant.application_date.strftime("%Y-%m-%d"),
+        status=db_applicant.status.value,
+        current_stage=db_applicant.current_stage,
+        name=db_applicant.name,
+        email=db_applicant.email,
+        phone=db_applicant.phone,
+        job_id=str(db_applicant.job_id),
+        job_title=db_applicant.job_title,
+        resume_url=db_applicant.resume_url,
+        cv_file_name=db_applicant.cv_file_name,
+        cover_letter=db_applicant.cover_letter,
+        portfolio_url=db_applicant.portfolio_url,
+        linkedin_url=db_applicant.linkedin_url,
+        experience_years=db_applicant.experience_years,
+        education=db_applicant.education,
+        skills=db_applicant.skills,
+        date_of_birth=db_applicant.date_of_birth.strftime("%Y-%m-%d") if db_applicant.date_of_birth else None,
+        gender=db_applicant.gender,
+        nationality=db_applicant.nationality,
+        address=db_applicant.address,
+        city=db_applicant.city,
+        state=db_applicant.state,
+        zip_code=db_applicant.zip_code,
+        country=db_applicant.country,
+        emergency_contact_name=db_applicant.emergency_contact_name,
+        emergency_contact_phone=db_applicant.emergency_contact_phone,
+        emergency_contact_relationship=db_applicant.emergency_contact_relationship
+    )
+
+
+class UpdateStatusRequest(BaseModel):
+    status: str
+    current_stage: Optional[str] = None
+
+
+@router.patch("/applicants/{applicant_id}/status")
+async def update_applicant_status(applicant_id: str, request: UpdateStatusRequest, db: Session = Depends(get_db)):
+    """Update applicant status"""
+
+    valid_statuses = ["new", "screening", "interview", "offer", "hired", "rejected"]
+
+    if request.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+
+    try:
+        applicant_uuid = uuid.UUID(applicant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid applicant ID format")
+
+    db_applicant = db.query(Applicant).filter(Applicant.id == applicant_uuid).first()
+
+    if not db_applicant:
+        raise HTTPException(status_code=404, detail="Applicant not found")
+
+    db_applicant.status = ApplicantStatus(request.status)
+    if request.current_stage:
+        db_applicant.current_stage = request.current_stage
+
+    db.commit()
+    db.refresh(db_applicant)
+
+    return ApplicantResponse(
+        id=str(db_applicant.id),
+        application_date=db_applicant.application_date.strftime("%Y-%m-%d"),
+        status=db_applicant.status.value,
+        current_stage=db_applicant.current_stage,
+        name=db_applicant.name,
+        email=db_applicant.email,
+        phone=db_applicant.phone,
+        job_id=str(db_applicant.job_id),
+        job_title=db_applicant.job_title,
+        resume_url=db_applicant.resume_url,
+        cv_file_name=db_applicant.cv_file_name,
+        cover_letter=db_applicant.cover_letter,
+        portfolio_url=db_applicant.portfolio_url,
+        linkedin_url=db_applicant.linkedin_url,
+        experience_years=db_applicant.experience_years,
+        education=db_applicant.education,
+        skills=db_applicant.skills,
+        date_of_birth=db_applicant.date_of_birth.strftime("%Y-%m-%d") if db_applicant.date_of_birth else None,
+        gender=db_applicant.gender,
+        nationality=db_applicant.nationality,
+        address=db_applicant.address,
+        city=db_applicant.city,
+        state=db_applicant.state,
+        zip_code=db_applicant.zip_code,
+        country=db_applicant.country,
+        emergency_contact_name=db_applicant.emergency_contact_name,
+        emergency_contact_phone=db_applicant.emergency_contact_phone,
+        emergency_contact_relationship=db_applicant.emergency_contact_relationship
+    )
+
+
+@router.delete("/applicants/{applicant_id}")
+async def delete_applicant(applicant_id: str, db: Session = Depends(get_db)):
+    """Delete an applicant"""
+
+    try:
+        applicant_uuid = uuid.UUID(applicant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid applicant ID format")
+
+    db_applicant = db.query(Applicant).filter(Applicant.id == applicant_uuid).first()
+
+    if not db_applicant:
+        raise HTTPException(status_code=404, detail="Applicant not found")
+
+    job_id = db_applicant.job_id
+
+    db.delete(db_applicant)
+    db.commit()
+
+    # Update job requisition applicants_count
+    db_job = db.query(JobRequisition).filter(JobRequisition.id == job_id).first()
+    if db_job:
+        db_job.applicants_count = max(0, db_job.applicants_count - 1)
+        db.commit()
+
+    return {"message": "Applicant deleted successfully"}
+
+
+# Convert Applicant to Employee
+class ConvertToEmployeeRequest(BaseModel):
+    applicant_id: str
+    job_requisition_id: str
+    start_date: str
+    employee_code: Optional[str] = None
+    department_id: Optional[str] = None
+    base_salary: Optional[float] = None
+    pay_frequency: Optional[str] = "bi_weekly"
+    employment_type: Optional[str] = "full_time"
+    probation_days: int = 90
+
+
+@router.post("/applicants/convert-to-employee")
+async def convert_applicant_to_employee(request: ConvertToEmployeeRequest, db: Session = Depends(get_db)):
+    """Convert a hired applicant to an employee in the HR system"""
+
+    # Find the applicant
+    try:
+        applicant_uuid = uuid.UUID(request.applicant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid applicant ID format")
+
+    db_applicant = db.query(Applicant).filter(Applicant.id == applicant_uuid).first()
+
+    if not db_applicant:
+        raise HTTPException(status_code=404, detail="Applicant not found")
+
+    # Verify applicant status is "hired"
+    if db_applicant.status != ApplicantStatus.HIRED:
+        raise HTTPException(
+            status_code=400,
+            detail="Only hired applicants can be converted to employees"
+        )
+
+    # Find job requisition for additional details
+    try:
+        job_req_uuid = uuid.UUID(request.job_requisition_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job requisition ID format")
+
+    db_job = db.query(JobRequisition).filter(JobRequisition.id == job_req_uuid).first()
+
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job requisition not found")
+
+    # Generate employee code if not provided
+    employee_code = request.employee_code
+    if not employee_code:
+        year = datetime.now().year
+        # Count existing employees to generate sequential code
+        applicant_count = db.query(Applicant).count()
+        employee_code = f"EMP-{year}-{applicant_count:04d}"
+
+    # Calculate probation end date
+    start_date_obj = datetime.strptime(request.start_date, "%Y-%m-%d")
+    probation_end_date = (start_date_obj + timedelta(days=request.probation_days)).strftime("%Y-%m-%d")
+
+    # Parse applicant name into first and last name
+    name_parts = db_applicant.name.split(" ", 1)
+    first_name = name_parts[0]
+    last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+    # Prepare employee data
+    employee_data = {
+        "employee_code": employee_code,
+        "first_name": first_name,
+        "last_name": last_name,
+        "work_email": db_applicant.email,
+        "work_phone": db_applicant.phone,
+        "employment_type": (request.employment_type or db_job.employment_type).lower(),
+        "employment_status": "on_probation",
+        "job_title": db_applicant.job_title,
+        "hire_date": request.start_date,
+        "base_salary": request.base_salary,
+        "pay_frequency": request.pay_frequency,
+        # Only include department_id if it has a value
+        **({"department_id": request.department_id} if request.department_id else {}),
+        # Personal info from applicant (only include if not None)
+        **({"date_of_birth": db_applicant.date_of_birth.strftime("%Y-%m-%d")} if db_applicant.date_of_birth else {}),
+        **({"gender": db_applicant.gender} if db_applicant.gender else {}),
+        **({"nationality": db_applicant.nationality} if db_applicant.nationality else {}),
+        **({"address": db_applicant.address} if db_applicant.address else {}),
+        **({"city": db_applicant.city} if db_applicant.city else {}),
+        **({"state": db_applicant.state} if db_applicant.state else {}),
+        **({"zip_code": db_applicant.zip_code} if db_applicant.zip_code else {}),
+        **({"country": db_applicant.country} if db_applicant.country else {}),
+        # Emergency contact (only include if not None)
+        **({"emergency_contact_name": db_applicant.emergency_contact_name} if db_applicant.emergency_contact_name else {}),
+        **({"emergency_contact_phone": db_applicant.emergency_contact_phone} if db_applicant.emergency_contact_phone else {}),
+        **({"emergency_contact_relationship": db_applicant.emergency_contact_relationship} if db_applicant.emergency_contact_relationship else {})
+    }
+
+    # Call HR backend API to create employee
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://hr-backend:8000/api/v1/employees",
+                json=employee_data,
+                timeout=30.0
+            )
+
+            if response.status_code == 200 or response.status_code == 201:
+                employee = response.json()
+
+                # Update applicant with converted flag
+                db_applicant.converted_to_employee = True
+                db_applicant.employee_id = uuid.UUID(employee.get("id")) if employee.get("id") else None
+                db_applicant.conversion_date = datetime.now().date()
+                db.commit()
+
+                return {
+                    "message": "Applicant successfully converted to employee",
+                    "employee_id": employee.get("id"),
+                    "employee_code": employee_code,
+                    "onboarding_initiated": True,
+                    "employee_data": employee
+                }
+            else:
+                error_detail = response.text
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Failed to create employee in HR system: {error_detail}"
+                )
+
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to connect to HR system: {str(e)}"
+        )
+
+
+@router.get("/applicants/hired", response_model=List[ApplicantResponse])
+async def get_hired_applicants(db: Session = Depends(get_db)):
+    """Get all hired applicants (ready to be converted to employees)"""
+
+    hired_applicants = db.query(Applicant).filter(
+        Applicant.status == ApplicantStatus.HIRED,
+        Applicant.converted_to_employee == False
+    ).all()
+
+    # Convert to response format
+    result = []
+    for db_applicant in hired_applicants:
+        result.append(ApplicantResponse(
+            id=str(db_applicant.id),
+            application_date=db_applicant.application_date.strftime("%Y-%m-%d"),
+            status=db_applicant.status.value,
+            current_stage=db_applicant.current_stage,
+            name=db_applicant.name,
+            email=db_applicant.email,
+            phone=db_applicant.phone,
+            job_id=str(db_applicant.job_id),
+            job_title=db_applicant.job_title,
+            resume_url=db_applicant.resume_url,
+            cv_file_name=db_applicant.cv_file_name,
+            cover_letter=db_applicant.cover_letter,
+            portfolio_url=db_applicant.portfolio_url,
+            linkedin_url=db_applicant.linkedin_url,
+            experience_years=db_applicant.experience_years,
+            education=db_applicant.education,
+            skills=db_applicant.skills,
+            date_of_birth=db_applicant.date_of_birth.strftime("%Y-%m-%d") if db_applicant.date_of_birth else None,
+            gender=db_applicant.gender,
+            nationality=db_applicant.nationality,
+            address=db_applicant.address,
+            city=db_applicant.city,
+            state=db_applicant.state,
+            zip_code=db_applicant.zip_code,
+            country=db_applicant.country,
+            emergency_contact_name=db_applicant.emergency_contact_name,
+            emergency_contact_phone=db_applicant.emergency_contact_phone,
+            emergency_contact_relationship=db_applicant.emergency_contact_relationship
+        ))
+
+    return result

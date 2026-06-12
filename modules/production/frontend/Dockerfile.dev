@@ -1,0 +1,26 @@
+FROM node:18-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+RUN npm install
+
+# Development image
+FROM base AS dev
+WORKDIR /app
+
+# Copy dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Expose port
+EXPOSE 3007
+
+# Set environment variable for port
+ENV PORT 3007
+
+# Run development server
+CMD ["npm", "run", "dev"]
