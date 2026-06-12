@@ -116,30 +116,38 @@ Settings → Secrets and variables → **Actions** → *New repository secret*:
 | `LIGHTSAIL_USER` | `ubuntu` |
 | `LIGHTSAIL_SSH_KEY` | full contents of `~/.ssh/nexacore_deploy` |
 | `LIGHTSAIL_DEPLOY_DIR` | `/home/ubuntu/nexacore` |
+| `POSTGRES_PASSWORD` | DB password — **set before first deploy** (`openssl rand -hex 24`) |
+| `APP_SECRET_KEY` | backend JWT key, ≥32 chars (`openssl rand -hex 32`) |
+| `VAULT_ENCRYPTION_KEY` | base64 of 32 random bytes (`openssl rand -base64 32`) |
 | `ANTHROPIC_API_KEY` | your Anthropic key (AI features) |
 | `OPENAI_API_KEY` | OpenAI key (optional — embeddings only) |
-| `VAULT_ENCRYPTION_KEY` | base64 of 32 random bytes (`openssl rand -base64 32`) |
-| `APP_SECRET_KEY` | random ≥32-char string (`openssl rand -hex 32`) |
 
-## 6. Production hardening (do before going live)
+## 6. Production stack vs. dev
 
-The Compose file ships **dev defaults**. At minimum:
+The deploy uses **`docker-compose.prod.yml`** (not the dev `docker-compose.yml`),
+which already hardens the important bits:
+- Frontend is a real **`next build` + `next start`** image (`Dockerfile.prod`),
+  not the dev server — no source bind-mounts.
+- Backend runs the image's code with **`DEBUG=False`** and uvicorn **without
+  `--reload`**.
+- DB password, `SECRET_KEY`, and `VAULT_ENCRYPTION_KEY` come from `.env` and the
+  stack **refuses to start** if the required ones are missing.
+- Internal ports (3100/8012/5432/6379/8000) are **not published** — only nginx
+  `:80` is exposed.
 
-- **Postgres password** — it's `postgres` in `docker-compose.yml`. Change
-  `POSTGRES_PASSWORD` *and* the password in `DATABASE_URL` to match, **before the
-  first boot** (the password is baked into the data volume on init).
-- **`DEBUG=True`** → set `False` for production once you've confirmed things work.
-- **Frontend** runs the Next.js **dev server** (`Dockerfile.dev`). It works, but a
-  production build (`next build && next start`) is faster and lighter — ask for a
-  `docker-compose.prod.yml` override if you want it.
-- **Secrets** — `SECRET_KEY` and `VAULT_ENCRYPTION_KEY` now read from `.env`
-  (the workflow writes it from your GitHub secrets). Confirm they're set.
+The one thing you must get right up front: **`POSTGRES_PASSWORD` must be set
+before the first deploy**, because Postgres bakes it into the data volume on
+init. Changing it later means resetting the volume (data loss) or an
+`ALTER USER` inside the container.
 
 ## 7. First deploy
 
 - Push `main` (or run the workflow manually: Actions → *Deploy to AWS Lightsail*
   → **Run workflow**).
-- The workflow rsyncs code, writes `.env`, and runs `docker compose up -d --build`.
+- The workflow rsyncs code, writes `.env`, and runs
+  `docker compose -f docker-compose.prod.yml up -d --build` (the frontend build
+  takes a few minutes the first time — this is where the swap from Step 3 earns
+  its keep).
 - On the **first** boot, Postgres runs `infrastructure/databases/init-scripts`
   against the empty volume to create the schema/seed.
 - The health check polls `http://localhost/`; the run fails (with logs) if the
@@ -174,12 +182,13 @@ State lives in Docker **named volumes** (survive `compose up/down`, *not*
 
 ```bash
 cd ~/nexacore
-docker compose ps                  # status
-docker compose logs -f core-backend   # tail a service
-docker compose restart core-backend
-docker compose down                # stop (keeps volumes)
-docker compose up -d --build       # what CI runs
-docker system df                   # disk usage; `docker image prune -f` to reclaim
+P="-f docker-compose.prod.yml"     # always target the prod stack
+docker compose $P ps                   # status
+docker compose $P logs -f core-backend # tail a service
+docker compose $P restart core-backend
+docker compose $P down                 # stop (keeps volumes)
+docker compose $P up -d --build        # what CI runs
+docker system df                       # disk usage; `docker image prune -f` to reclaim
 ```
 
 Redeploys are just `git push` to `main` — CI handles the rest.

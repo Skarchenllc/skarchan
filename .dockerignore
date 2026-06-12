@@ -1,0 +1,19 @@
+# Keep the Docker build context small and prevent host build artifacts from
+# overwriting what the image installs/builds.
+**/node_modules
+**/.next
+**/out
+**/dist
+**/build
+**/venv
+**/.venv
+**/__pycache__
+**/*.py[cod]
+.git
+.github
+**/.env
+**/.env.local
+*.log
+.DS_Store
+modules/*/backend/uploads
+systems_changes

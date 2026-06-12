@@ -1,0 +1,117 @@
+# Production stack — run STANDALONE (not merged with docker-compose.yml):
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Differences from the dev docker-compose.yml:
+#   • Frontend  → real `next build` + `next start` image (Dockerfile.prod), no source bind-mounts
+#   • Backend   → runs the image's code (no bind-mount), uvicorn WITHOUT --reload, DEBUG=False
+#   • Secrets   → DB password, SECRET_KEY, VAULT key, API keys come from .env (required ones fail fast if unset)
+#   • Networking→ internal service ports are NOT published to the host; only nginx :80 is public
+#   • restart: unless-stopped on everything
+#
+# Required .env keys (the deploy workflow writes these from GitHub secrets):
+#   POSTGRES_PASSWORD, SECRET_KEY, VAULT_ENCRYPTION_KEY  (required)
+#   ANTHROPIC_API_KEY, OPENAI_API_KEY                    (optional)
+#   POSTGRES_USER, POSTGRES_DB                           (optional; default postgres / business_management)
+
+name: nexacore
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: bmp-nginx
+    ports:
+      - "80:80"
+      # - "443:443"   # uncomment after adding a TLS server block + certs to nginx/nginx.conf
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - core-frontend
+      - core-backend
+    networks: [bmp-network]
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: bmp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-business_management}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/databases/init-scripts:/docker-entrypoint-initdb.d
+    networks: [bmp-network]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: bmp-redis
+    volumes:
+      - redis_data:/data
+    networks: [bmp-network]
+    restart: unless-stopped
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: bmp-chromadb
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    volumes:
+      - chromadb_data:/chroma/chroma
+    networks: [bmp-network]
+    restart: unless-stopped
+
+  core-frontend:
+    build:
+      context: .
+      dockerfile: modules/core/frontend/Dockerfile.prod
+    container_name: bmp-core-frontend
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=
+      - NEXT_PUBLIC_MODULE=core
+      - NODE_OPTIONS=--max-old-space-size=2048
+    depends_on:
+      - core-backend
+    networks: [bmp-network]
+    restart: unless-stopped
+
+  core-backend:
+    build:
+      context: ./modules/core/backend
+      dockerfile: Dockerfile
+    container_name: bmp-core-backend
+    # Prod command: drop --reload (the dev Dockerfile's CMD). Single async worker
+    # avoids double-running the in-process AI/automation schedulers.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-business_management}
+      - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in .env}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+      - REFRESH_TOKEN_EXPIRE_DAYS=30
+      - DEBUG=False
+      - REDIS_URL=redis://redis:6379
+      - CHROMA_URL=http://chromadb:8000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:?Set VAULT_ENCRYPTION_KEY in .env}
+    depends_on:
+      - postgres
+      - redis
+      - chromadb
+    volumes:
+      - uploads_data:/app/uploads
+    networks: [bmp-network]
+    restart: unless-stopped
+
+networks:
+  bmp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  chromadb_data:
+  uploads_data:

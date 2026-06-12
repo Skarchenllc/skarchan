@@ -13,10 +13,15 @@ name: Deploy to AWS Lightsail
 #   LIGHTSAIL_USER         SSH user (Ubuntu blueprint → "ubuntu")
 #   LIGHTSAIL_SSH_KEY      Private key (full PEM contents) for that user
 #   LIGHTSAIL_DEPLOY_DIR   Absolute path on the instance, e.g. /home/ubuntu/nexacore
+#   POSTGRES_PASSWORD      Database password (set BEFORE the first deploy — it is
+#                          baked into the postgres volume on init)
+#   APP_SECRET_KEY         App secret → backend JWT signing key (>= 32 chars)
+#   VAULT_ENCRYPTION_KEY   App secret → field-level encryption master key
 #   ANTHROPIC_API_KEY      App secret → written into the instance .env
 #   OPENAI_API_KEY         App secret (optional; embeddings only)
-#   VAULT_ENCRYPTION_KEY   App secret → field-level encryption master key
-#   APP_SECRET_KEY         App secret → backend JWT signing key (>= 32 chars)
+#
+# Deploys the PRODUCTION stack (docker-compose.prod.yml): real Next.js build,
+# DEBUG=False, secrets from .env, internal ports unpublished.
 #
 # One-time instance prep (run once on the VM):
 #   sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2 rsync
@@ -54,10 +59,11 @@ jobs:
         run: |
           umask 077
           cat > .env <<EOF
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_KEY=${{ secrets.APP_SECRET_KEY }}
+          VAULT_ENCRYPTION_KEY=${{ secrets.VAULT_ENCRYPTION_KEY }}
           ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          VAULT_ENCRYPTION_KEY=${{ secrets.VAULT_ENCRYPTION_KEY }}
-          SECRET_KEY=${{ secrets.APP_SECRET_KEY }}
           EOF
 
       - name: Sync code to the instance
@@ -81,7 +87,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
             "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
             "cd '${{ secrets.LIGHTSAIL_DEPLOY_DIR }}' && \
-             docker compose up -d --build --remove-orphans && \
+             docker compose -f docker-compose.prod.yml up -d --build --remove-orphans && \
              docker image prune -f"
 
       - name: Health check
@@ -94,4 +100,4 @@ jobs:
                echo \"waiting for app… (\$i/15)\"; sleep 6; \
              done; \
              echo '::error::Health check failed — recent logs:'; \
-             docker compose logs --tail=80; exit 1"
+             docker compose -f docker-compose.prod.yml logs --tail=80; exit 1"
