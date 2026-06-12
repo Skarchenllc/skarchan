@@ -1,12 +1,14 @@
 name: Deploy to AWS Lightsail
 
 # Deploys the Docker Compose stack to an AWS Lightsail *instance* (an Ubuntu VM
-# running Docker + the Compose plugin). The stack is stateful (Postgres / Redis /
-# ChromaDB use Docker volumes), so a VM is the right target — not the stateless
-# Lightsail Container Service.
+# running Docker + the Compose plugin). The stack is stateful (Postgres uses a
+# Docker volume), so a VM is the right target — not the stateless Container Service.
 #
-# Flow: check out the repo on the runner → rsync the tree to the instance →
-# write the production .env from secrets → `docker compose up -d --build` → health-check.
+# Images are BUILT ON THE RUNNER (the 2 GB instance can't run the Next.js build)
+# and streamed to the box over SSH — no container registry required.
+# Flow: checkout → write .env from secrets → build frontend+backend images →
+# rsync runtime files → `docker save | ssh docker load` → `compose up --no-build`
+# → health-check.
 #
 # ── Required repository secrets (Settings → Secrets and variables → Actions) ──
 #   LIGHTSAIL_HOST         Public IP or DNS of the Lightsail instance
@@ -66,7 +68,14 @@ jobs:
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           EOF
 
-      - name: Sync code to the instance
+      # Build the images HERE on the runner (7 GB RAM) — the 2 GB Lightsail box
+      # can't run the Next.js build. The frontend is a standalone image (~290 MB).
+      - name: Build images on the runner
+        run: |
+          docker build -f modules/core/frontend/Dockerfile.prod -t nexacore-frontend:latest .
+          docker build -t nexacore-backend:latest ./modules/core/backend
+
+      - name: Sync runtime files to the instance
         env:
           TARGET: ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:${{ secrets.LIGHTSAIL_DEPLOY_DIR }}/
         run: |
@@ -82,12 +91,22 @@ jobs:
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
             ./ "$TARGET"
 
-      - name: Build & start containers
+      # Stream the built images straight to the instance over the existing SSH
+      # connection (no registry needed) and load them into its Docker.
+      - name: Ship images to the instance
+        run: |
+          docker save nexacore-frontend:latest nexacore-backend:latest \
+            | gzip \
+            | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+                "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
+                'gunzip | docker load'
+
+      - name: Start containers (no build on the instance)
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
             "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
             "cd '${{ secrets.LIGHTSAIL_DEPLOY_DIR }}' && \
-             docker compose -f docker-compose.prod.yml up -d --build --remove-orphans && \
+             docker compose -f docker-compose.prod.yml up -d --no-build --remove-orphans && \
              docker image prune -f"
 
       - name: Health check

@@ -1,10 +1,10 @@
-# Production image for the core Next.js frontend.
+# Production image for the core Next.js frontend (standalone output).
 #
-# IMPORTANT: the build context must be the REPO ROOT (not this folder), because
-# the app imports shared components from `shared/` (mapped to `src/_shared` via
-# tsconfig paths — provided by a bind mount in dev, copied in here for prod):
+# The build context must be the REPO ROOT, because the app imports shared
+# components from `shared/` (mapped to `src/_shared` via tsconfig paths —
+# a bind mount in dev, copied in here for prod):
 #   docker build -f modules/core/frontend/Dockerfile.prod -t nexacore-frontend .
-# docker-compose.prod.yml already sets `context: .` so this is automatic.
+# docker-compose.prod.yml sets `context: .` so this is automatic.
 
 # ---- deps: install node_modules (incl. devDeps — needed to build) ----------
 FROM node:20-alpine AS deps
@@ -12,7 +12,7 @@ WORKDIR /app
 COPY modules/core/frontend/package.json modules/core/frontend/package-lock.json* ./
 RUN npm install
 
-# ---- build: compile the production Next.js bundle --------------------------
+# ---- build: compile the standalone production bundle -----------------------
 FROM node:20-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -21,11 +21,16 @@ COPY modules/core/frontend/ ./
 COPY shared/ ./src/_shared/
 RUN npm run build
 
-# ---- runtime: serve with `next start` --------------------------------------
+# ---- runtime: serve the traced standalone server (tiny + low RAM) ----------
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=build /app ./
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+# `.next/standalone` already contains a minimal node_modules + server.js; the
+# static assets are copied alongside it.
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]

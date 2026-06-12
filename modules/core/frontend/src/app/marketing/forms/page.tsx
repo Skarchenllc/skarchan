@@ -32,7 +32,8 @@ export default function FormsPage() {
       const r = await fetch(`/api/v1/public/forms/${id}/submit`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
-      setResult(rs => ({ ...rs, [id]: await r.json() }));
+      const data = await r.json();
+      setResult(rs => ({ ...rs, [id]: data }));
     } catch (e: any) {
       setResult(rs => ({ ...rs, [id]: { error: e?.message || String(e) } }));
     } finally { setBusy(null); }

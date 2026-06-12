@@ -10,7 +10,11 @@
 #   • restart: unless-stopped on everything
 #   • Slimmed for AWS: Redis dropped (unused — rate limiter is in-memory), and
 #     ChromaDB is opt-in via `--profile semantic`. Default = nginx + frontend +
-#     backend + postgres (4 containers), which fits the 4 GB Lightsail plan.
+#     backend + postgres (4 containers).
+#   • Fits a 2 GB instance: the frontend is a Next.js *standalone* image (~290 MB,
+#     low RAM) and images are BUILT IN CI and loaded onto the box (it never runs
+#     the memory-heavy build). Deploy with `up --no-build` so it only runs them.
+#     For a one-off LOCAL run on a beefy machine: `docker compose -f docker-compose.prod.yml up --build`.
 #
 # Required .env keys (the deploy workflow writes these from GitHub secrets):
 #   POSTGRES_PASSWORD, SECRET_KEY, VAULT_ENCRYPTION_KEY  (required)
@@ -66,6 +70,10 @@ services:
     restart: unless-stopped
 
   core-frontend:
+    # Built in CI and loaded onto the instance (the 2 GB box never builds).
+    # `pull_policy: never` → use the locally-loaded image, don't try a registry.
+    image: nexacore-frontend:latest
+    pull_policy: never
     build:
       context: .
       dockerfile: modules/core/frontend/Dockerfile.prod
@@ -74,13 +82,16 @@ services:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=
       - NEXT_PUBLIC_MODULE=core
-      - NODE_OPTIONS=--max-old-space-size=2048
+      # Standalone server is lean; cap the heap so it can't balloon on a 2 GB host.
+      - NODE_OPTIONS=--max-old-space-size=512
     depends_on:
       - core-backend
     networks: [bmp-network]
     restart: unless-stopped
 
   core-backend:
+    image: nexacore-backend:latest
+    pull_policy: never
     build:
       context: ./modules/core/backend
       dockerfile: Dockerfile

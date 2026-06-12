@@ -10,6 +10,13 @@ export const metadata: Metadata = {
   description: 'Core System Management Platform',
 };
 
+// This is an auth-gated, client-rendered app (every page fetches per-user data
+// at runtime with a token). Render dynamically instead of statically exporting —
+// set on the root layout so it cascades to all routes, which a `'use client'`
+// page cannot do itself. Fixes build-time prerender errors (e.g. useSearchParams
+// on /settings) and matches how the app actually runs.
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: {

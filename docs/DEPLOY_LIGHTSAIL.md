@@ -31,15 +31,15 @@ The production stack (`docker-compose.prod.yml`) runs **4 containers** by defaul
   "Ask Your Data":
   `docker compose -f docker-compose.prod.yml --profile semantic up -d`
 
-Default steady state is ~1–1.5 GB RAM, with a spike during the one-time Next.js
-build. External Anthropic / OpenAI APIs are called over the network — no local
-GPU/model.
+Default runtime is ~1–1.5 GB RAM. Crucially, **the images are built in CI, not on
+the instance** (the frontend is a lean Next.js *standalone* image, ~290 MB), so
+there is **no build memory spike** on the box — it only ever runs containers.
+External Anthropic / OpenAI APIs are called over the network — no local GPU/model.
 
-**Recommended plan:** `4 GB RAM / 2 vCPU` (~$24/mo) — comfortable for the default
-stack (add **swap**, Step 3, so the first frontend build doesn't OOM-kill).
-**Bump to `8 GB / 2 vCPU` (~$44/mo)** if you enable the `semantic` profile
-(ChromaDB) or run other heavy modules.
-Do **not** use 1–2 GB plans.
+**Smallest that fits: `2 GB RAM / 2 vCPU / 60 GB SSD` (~$12/mo).** Add ~2 GB swap
+(Step 3) for headroom during traffic peaks.
+**`4 GB / 2 vCPU` (~$24/mo)** is more comfortable, and required if you enable the
+`semantic` profile (ChromaDB) or run other heavy modules.
 
 **Blueprint:** Ubuntu 22.04 LTS (OS-only, not a pre-baked app).
 **Disk:** the included 80 GB (4 GB plan) / 160 GB (8 GB plan) is plenty — the repo
@@ -81,8 +81,8 @@ sudo systemctl enable --now docker
 sudo usermod -aG docker $USER         # run docker without sudo
 # log out and back in for the group change to take effect
 
-# Swap — REQUIRED on the 4 GB plan, recommended everywhere (covers build spikes)
-sudo fallocate -l 4G /swapfile
+# Swap — recommended (esp. on the 2 GB plan) for headroom under load
+sudo fallocate -l 2G /swapfile
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
@@ -152,10 +152,10 @@ init. Changing it later means resetting the volume (data loss) or an
 
 - Push `main` (or run the workflow manually: Actions → *Deploy to AWS Lightsail*
   → **Run workflow**).
-- The workflow rsyncs code, writes `.env`, and runs
-  `docker compose -f docker-compose.prod.yml up -d --build` (the frontend build
-  takes a few minutes the first time — this is where the swap from Step 3 earns
-  its keep).
+- The workflow **builds the frontend + backend images on the GitHub runner**,
+  streams them to the instance (`docker save | ssh docker load`), and runs
+  `docker compose -f docker-compose.prod.yml up -d --no-build`. The instance
+  never compiles — it just loads and runs, which is what keeps it inside 2 GB.
 - On the **first** boot, Postgres runs `infrastructure/databases/init-scripts`
   against the empty volume to create the schema/seed.
 - The health check polls `http://localhost/`; the run fails (with logs) if the
