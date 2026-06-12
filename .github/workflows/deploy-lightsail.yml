@@ -20,7 +20,6 @@ name: Deploy to AWS Lightsail
 #   APP_SECRET_KEY         App secret → backend JWT signing key (>= 32 chars)
 #   VAULT_ENCRYPTION_KEY   App secret → field-level encryption master key
 #   ANTHROPIC_API_KEY      App secret → written into the instance .env
-#   OPENAI_API_KEY         App secret (optional; embeddings only)
 #
 # Deploys the PRODUCTION stack (docker-compose.prod.yml): real Next.js build,
 # DEBUG=False, secrets from .env, internal ports unpublished.
@@ -65,7 +64,6 @@ jobs:
           SECRET_KEY=${{ secrets.APP_SECRET_KEY }}
           VAULT_ENCRYPTION_KEY=${{ secrets.VAULT_ENCRYPTION_KEY }}
           ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           EOF
 
       # Build the images HERE on the runner (7 GB RAM) — the 2 GB Lightsail box

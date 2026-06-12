@@ -70,9 +70,6 @@ services:
       # Anthropic API key for AI features (e.g. the PM auto-planner). Set a real
       # value in .env; the backend reads it at request time.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      # OpenAI key — only powered embeddings for semantic search (via ChromaDB,
-      # now removed), so it's currently inert. The LLM is Claude. Leave empty.
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       # Master key for AES-GCM field-level encryption. 32 raw bytes,
       # base64-encoded. Override in production via a secret manager.
       - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:-Vm91blJqYjBhVHhxK0RVRWp1VUxYTHpHcExuTGFLczg=}

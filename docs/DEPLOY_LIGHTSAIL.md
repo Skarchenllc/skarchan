@@ -30,7 +30,7 @@ unused (the rate limiter is in-memory), and ChromaDB powered optional semantic
 Default runtime is ~1–1.5 GB RAM. Crucially, **the images are built in CI, not on
 the instance** (the frontend is a lean Next.js *standalone* image, ~290 MB), so
 there is **no build memory spike** on the box — it only ever runs containers.
-External Anthropic / OpenAI APIs are called over the network — no local GPU/model.
+The Anthropic API is called over the network — no local GPU/model.
 
 **Smallest that fits: `2 GB RAM / 2 vCPU / 60 GB SSD` (~$12/mo).** Add ~2 GB swap
 (Step 3) for headroom during traffic peaks.
@@ -124,7 +124,6 @@ Settings → Secrets and variables → **Actions** → *New repository secret*:
 | `APP_SECRET_KEY` | backend JWT key, ≥32 chars (`openssl rand -hex 32`) |
 | `VAULT_ENCRYPTION_KEY` | base64 of 32 random bytes (`openssl rand -base64 32`) |
 | `ANTHROPIC_API_KEY` | your Anthropic key (AI features) |
-| `OPENAI_API_KEY` | optional & currently inert (only fed ChromaDB embeddings, now removed) |
 
 ## 6. Production stack vs. dev
 
