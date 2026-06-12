@@ -51,10 +51,15 @@ jobs:
 
       - name: Configure SSH
         run: |
+          if [ -z "${{ secrets.LIGHTSAIL_HOST }}" ]; then
+            echo "::error::LIGHTSAIL_HOST secret is empty — set it to your instance's public/static IP."
+            exit 1
+          fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.LIGHTSAIL_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          # Best-effort known_hosts; the deploy steps use accept-new so this can't block.
+          ssh-keyscan -H "${{ secrets.LIGHTSAIL_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Write production .env
         run: |
@@ -86,7 +91,7 @@ jobs:
             --exclude '.DS_Store' \
             --exclude 'systems_changes/' \
             --exclude 'modules/*/backend/uploads/' \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
             ./ "$TARGET"
 
       # Stream the built images straight to the instance over the existing SSH
@@ -95,13 +100,13 @@ jobs:
         run: |
           docker save nexacore-frontend:latest nexacore-backend:latest \
             | gzip \
-            | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
                 "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
                 'gunzip | docker load'
 
       - name: Start containers (no build on the instance)
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
             "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
             "cd '${{ secrets.LIGHTSAIL_DEPLOY_DIR }}' && \
              docker compose -f docker-compose.prod.yml up -d --no-build --remove-orphans && \
@@ -109,7 +114,7 @@ jobs:
 
       - name: Health check
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
             "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
             "cd '${{ secrets.LIGHTSAIL_DEPLOY_DIR }}'; \
              for i in \$(seq 1 15); do \
