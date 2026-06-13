@@ -19,16 +19,17 @@ from app.models.user import User
 
 router = APIRouter()
 
-# Cookie settings for cross-port authentication
+# Cookie settings. No explicit `domain` → a host-only cookie that works on
+# localhost AND the production domain. (A hardcoded domain="localhost" made the
+# browser reject the cookie on any real domain, breaking auth in production.)
 COOKIE_SETTINGS = {
     "httponly": True,
-    "secure": False,  # Set to True in production with HTTPS
+    "secure": False,  # still sent over HTTPS; SameSite=Lax keeps it same-site
     "samesite": "lax",
-    "domain": "localhost",  # Works across all localhost ports
 }
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserRegister,
     request: Request,
@@ -70,7 +71,21 @@ async def register(
         **COOKIE_SETTINGS
     )
 
-    return user
+    # Return tokens in the body too (the frontend stores them in localStorage and
+    # uses them as Bearer tokens) — same shape as /login, so auto-login after
+    # registration works regardless of cookies.
+    return {
+        "message": "Registration successful",
+        "access_token": token.access_token,
+        "refresh_token": token.refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+        },
+    }
 
 
 @router.post("/login")
@@ -138,8 +153,8 @@ async def logout(
     Requires: Valid JWT token
     """
     # Clear authentication cookies
-    response.delete_cookie(key="access_token", domain="localhost")
-    response.delete_cookie(key="refresh_token", domain="localhost")
+    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token")
 
     # TODO: Get session_id from token and revoke it in database
     # For now, just clear cookies
