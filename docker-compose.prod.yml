@@ -33,7 +33,10 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      - APP_DOMAIN=${APP_DOMAIN:?Set APP_DOMAIN in .env (your domain, e.g. app.example.com)}
+      # A real domain enables automatic HTTPS. The default ":80" serves plain
+      # HTTP so the deploy works before you have a domain — set the APP_DOMAIN
+      # secret (and open 443 + point DNS) to switch on HTTPS.
+      - APP_DOMAIN=${APP_DOMAIN:-:80}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # certificates live here — persist them!

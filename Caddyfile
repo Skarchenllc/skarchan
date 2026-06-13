@@ -18,14 +18,9 @@
 	}
 }
 
-# Public site — Caddy obtains + renews a certificate for this domain automatically.
-# Requires DNS A record -> instance IP and ports 80 + 443 open.
+# APP_DOMAIN is either a real domain (→ Caddy auto-obtains + renews a Let's
+# Encrypt cert and serves HTTPS, redirecting HTTP→HTTPS) or ":80" (the default,
+# → plain HTTP on port 80, so the deploy works before you have a domain).
 {$APP_DOMAIN} {
-	import app
-}
-
-# Plain-HTTP localhost — only so the on-box deploy health check (curl localhost)
-# works; real traffic uses the HTTPS site above.
-http://localhost {
 	import app
 }
